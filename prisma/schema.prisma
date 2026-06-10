@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -37,6 +37,7 @@ model Customer {
   orders          Order[]
   files           File[]   @relation("CustomerFiles")
   contacts        Contact[] // 关联联系人
+  followUps       FollowUp[] // 关联跟进记录
   
   @@map("customers")
 }
@@ -80,6 +81,7 @@ model Contact {
   updatedAt     DateTime @updatedAt @map("updated_at")
   
   customer      Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  followUps     FollowUp[] // 关联跟进记录
   
   @@map("contacts")
 }

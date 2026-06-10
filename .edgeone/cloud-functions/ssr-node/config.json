@@ -1,0 +1,145 @@
+{
+  "version": 3,
+  "routes": [
+    {
+      "src": "^/_next/static/(?:[^/]+/pages|pages|chunks|runtime|css|image|media|-szQy-hyTxM_IAIzu7ROj)/.+",
+      "headers": {
+        "cache-control": "public,max-age=31536000,immutable"
+      },
+      "continue": true
+    },
+    {
+      "src": "^/(.*)\\/$",
+      "headers": {
+        "Location": "/$1"
+      },
+      "status": 308
+    },
+    {
+      "src": "^/?$",
+      "has": [
+        {
+          "type": "header",
+          "key": "rsc",
+          "value": "1"
+        }
+      ],
+      "dest": "/index.rsc",
+      "headers": {
+        "vary": "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch",
+        "content-type": "text/x-component"
+      },
+      "continue": true
+    },
+    {
+      "src": "^/(.+?)(?:/)?$",
+      "exclude": "\\.rsc/?$",
+      "has": [
+        {
+          "type": "header",
+          "key": "rsc",
+          "value": "1"
+        }
+      ],
+      "dest": "/$1.rsc",
+      "headers": {
+        "vary": "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch",
+        "content-type": "text/x-component"
+      },
+      "continue": true
+    },
+    {
+      "src": "^/404/?$",
+      "status": 404,
+      "continue": true,
+      "missing": [
+        {
+          "type": "header",
+          "key": "x-prerender-revalidate"
+        }
+      ]
+    },
+    {
+      "src": "^/500$",
+      "status": 500,
+      "continue": true
+    },
+    {
+      "src": "^/((?:[^/]+/)*[^/.]+)/$",
+      "dest": "/$1",
+      "continue": true
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "^/$"
+    },
+    {
+      "src": "^/api/contacts/([^/]+?)(?:/)?$"
+    },
+    {
+      "src": "^/api/customers/([^/]+?)(?:/)?$"
+    },
+    {
+      "src": "^/api/customers/([^/]+?)/contacts(?:/)?$"
+    },
+    {
+      "src": "^/api/files/([^/]+?)(?:/)?$"
+    },
+    {
+      "src": "^/api/files/([^/]+?)/download(?:/)?$"
+    },
+    {
+      "src": "^/api/follow\\-up\\-scripts/([^/]+?)(?:/)?$"
+    },
+    {
+      "src": "^/api/follow\\-up\\-scripts/([^/]+?)/send(?:/)?$"
+    },
+    {
+      "src": "^/api/follow\\-ups/([^/]+?)(?:/)?$"
+    },
+    {
+      "src": "^/api/orders/([^/]+?)(?:/)?$"
+    },
+    {
+      "src": "^/api/products/([^/]+?)(?:/)?$"
+    },
+    {
+      "src": "^/api/suppliers/([^/]+?)(?:/)?$"
+    },
+    {
+      "src": "^/customers/([^/]+?)(?:/)?$"
+    },
+    {
+      "src": "^/customers/([^/]+?)/contacts(?:/)?$"
+    },
+    {
+      "src": "^/customers/([^/]+?)/edit(?:/)?$"
+    },
+    {
+      "src": "^/follow\\-ups/([^/]+?)/edit(?:/)?$"
+    },
+    {
+      "src": "^/orders/([^/]+?)(?:/)?$"
+    },
+    {
+      "src": "^/products/([^/]+?)(?:/)?$"
+    },
+    {
+      "src": "^/products/([^/]+?)/edit(?:/)?$"
+    },
+    {
+      "src": "^/suppliers/([^/]+?)(?:/)?$"
+    },
+    {
+      "src": "^/suppliers/([^/]+?)/edit(?:/)?$"
+    },
+    {
+      "src": "^/.*$"
+    }
+  ],
+  "framework": {
+    "version": "14.2.35"
+  }
+}
