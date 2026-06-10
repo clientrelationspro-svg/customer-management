@@ -38,8 +38,12 @@ export default function EditCustomerPage() {
     email: '',
     socialMedia: '',
     contactAddress: '',
+    keyContactId: '',
     status: 'active',
   });
+
+  // 联系人列表（用于关键联系人选择）
+  const [allContacts, setAllContacts] = useState<Contact[]>([]);
   
   // 查重相关状态
   const [companyNameExists, setCompanyNameExists] = useState(false);
@@ -81,8 +85,10 @@ export default function EditCustomerPage() {
           email: customer.email || '',
           socialMedia: customer.socialMedia || '',
           contactAddress: customer.contactAddress || '',
+          keyContactId: customer.keyContactId || '',
           status: customer.status || 'active',
         });
+        setAllContacts(customer.contacts || []);
       }
     } catch (error) {
       console.error('Error fetching customer:', error);
@@ -178,6 +184,7 @@ export default function EditCustomerPage() {
         email: formData.email || null,
         socialMedia: formData.socialMedia || null,
         contactAddress: formData.contactAddress || null,
+        keyContactId: formData.keyContactId || null,
         status: formData.status,
       };
       
@@ -390,6 +397,43 @@ export default function EditCustomerPage() {
         {activeTab === 'contact' && (
           <div className="bg-white rounded-lg shadow p-6 mb-6">
             <h2 className="text-lg font-semibold mb-4">联系方式</h2>
+            
+            {/* 关键联系人选择 */}
+            <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <label className="block text-sm font-medium mb-1">关键联系人</label>
+              <select
+                name="keyContactId"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                value={formData.keyContactId}
+                onChange={(e) => {
+                  const contactId = e.target.value;
+                  setFormData(prev => ({ ...prev, keyContactId: contactId }));
+                  // 自动填充联系方式
+                  if (contactId) {
+                    const contact = allContacts.find(c => c.id === contactId);
+                    if (contact) {
+                      setFormData(prev => ({
+                        ...prev,
+                        keyContactId: contactId,
+                        phone: contact.phone || prev.phone,
+                        email: contact.email || prev.email,
+                        socialMedia: contact.whatsapp || prev.socialMedia,
+                      }));
+                    }
+                  }
+                }}
+              >
+                <option value="">不指定关键联系人</option>
+                {allContacts.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} {c.position ? `(${c.position})` : ''} {c.phone ? `- ${c.phone}` : ''}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-blue-700 mt-1">
+                选择关键联系人后自动填充电话、邮箱、WhatsApp
+              </p>
+            </div>
             
             {/* 电话 */}
             <div className="mb-4">

@@ -1,6 +1,7 @@
 // Prisma Schema for Customer Management System
 generator client {
   provider = "prisma-client-js"
+  binaryTargets = ["native"]
 }
 
 datasource db {
@@ -29,6 +30,10 @@ model Customer {
   email           String?  @unique @map("email") // 邮箱
   socialMedia     String?  @map("social_media") // 社媒
   contactAddress  String?  @map("contact_address") // 联系地址
+  
+  // 关键联系人
+  keyContactId    String?  @map("key_contact_id") // 关键联系人ID
+  keyContact      Contact? @relation("KeyContact", fields: [keyContactId], references: [id], onDelete: SetNull)
   
   status          String   @default("active") @map("status")
   createdAt       DateTime @default(now()) @map("created_at")
@@ -80,8 +85,9 @@ model Contact {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
   
-  customer      Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  followUps     FollowUp[] // 关联跟进记录
+  customer        Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  keyForCustomers Customer[] @relation("KeyContact") // 被设为关键联系人的客户
+  followUps       FollowUp[] // 关联跟进记录
   
   @@map("contacts")
 }

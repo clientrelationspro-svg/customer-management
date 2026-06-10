@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
         where,
         include: {
           contacts: true,
+          keyContact: true,
           _count: {
             select: { orders: true }
           }
@@ -83,6 +84,7 @@ export async function POST(request: NextRequest) {
       email,
       socialMedia,
       contactAddress,
+      keyContactId,
       status,
       contacts,
     } = body;
@@ -112,6 +114,7 @@ export async function POST(request: NextRequest) {
         email,
         socialMedia,
         contactAddress,
+        keyContactId: keyContactId || null,
         status: status || 'active',
         contacts: contacts && contacts.length > 0 ? {
           create: contacts.map((contact: any) => ({

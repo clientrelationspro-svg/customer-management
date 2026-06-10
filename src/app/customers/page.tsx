@@ -17,6 +17,7 @@ interface Customer {
   website?: string;
   status: string;
   contacts: Contact[];
+  keyContact?: Contact | null;
   _count: {
     orders: number;
   };
@@ -28,7 +29,9 @@ interface Contact {
   name: string;
   position?: string;
   phone?: string;
+  whatsapp?: string;
   email?: string;
+  remarks?: string;
 }
 
 export default function CustomersPage() {
@@ -159,7 +162,10 @@ export default function CustomersPage() {
                   <th className="text-left p-3">公司名称</th>
                   <th className="text-left p-3">国家</th>
                   <th className="text-left p-3">行业</th>
-                  <th className="text-left p-3">联系电话</th>
+                  <th className="text-left p-3">关键联系人</th>
+                  <th className="text-left p-3">职位</th>
+                  <th className="text-left p-3">WhatsApp</th>
+                  <th className="text-left p-3">电话</th>
                   <th className="text-left p-3">邮箱</th>
                   <th className="text-left p-3">联系人</th>
                   <th className="text-left p-3">订单数</th>
@@ -170,7 +176,7 @@ export default function CustomersPage() {
               <tbody>
                 {customers.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="text-center py-8 text-gray-500">
+                    <td colSpan={12} className="text-center py-8 text-gray-500">
                       暂无客户数据
                     </td>
                   </tr>
@@ -191,15 +197,32 @@ export default function CustomersPage() {
                       <td className="p-3">{customer.country || '-'}</td>
                       <td className="p-3">{customer.industry || '-'}</td>
                       <td className="p-3">
-                        <div className="flex items-center gap-1">
+                        <span className={customer.keyContact?.name ? 'font-medium text-blue-700' : 'text-gray-400'}>
+                          {customer.keyContact?.name || '-'}
+                        </span>
+                      </td>
+                      <td className="p-3 text-sm">{customer.keyContact?.position || '-'}</td>
+                      <td className="p-3">
+                        {customer.keyContact?.whatsapp ? (
+                          <a href={`https://wa.me/${customer.keyContact.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline text-sm">
+                            {customer.keyContact.whatsapp}
+                          </a>
+                        ) : (customer.contacts[0]?.whatsapp ? (
+                          <a href={`https://wa.me/${customer.contacts[0].whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline text-sm">
+                            {customer.contacts[0].whatsapp}
+                          </a>
+                        ) : '-')}
+                      </td>
+                      <td className="p-3">
+                        <div className="flex items-center gap-1 text-sm">
                           <Phone size={14} className="text-gray-400" />
-                          {customer.phone || '-'}
+                          {customer.keyContact?.phone || customer.phone || '-'}
                         </div>
                       </td>
                       <td className="p-3">
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 text-sm">
                           <Mail size={14} className="text-gray-400" />
-                          {customer.email || '-'}
+                          {customer.keyContact?.email || customer.email || '-'}
                         </div>
                       </td>
                       <td className="p-3">

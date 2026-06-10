@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Plus, Trash2, Edit2, Save, X, User } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Edit2, Save, X, User, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
 interface Contact {
@@ -28,6 +28,9 @@ export default function CustomerContactsPage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showBatchImport, setShowBatchImport] = useState(false);
+  const [batchText, setBatchText] = useState('');
+  const [importing, setImporting] = useState(false);
   
   // 获取客户和联系人数据
   useEffect(() => {
@@ -74,6 +77,60 @@ export default function CustomerContactsPage() {
       isNew: true,
     };
     setContacts(prev => [...prev, newContact]);
+  };
+
+  // 批量导入联系人
+  const handleBatchImport = async () => {
+    if (!batchText.trim()) {
+      alert('请粘贴联系人数据');
+      return;
+    }
+    setImporting(true);
+    try {
+      // 解析文本：每行一个联系人，字段用空格/tab/逗号分隔
+      const lines = batchText.trim().split('\n').filter(l => l.trim());
+      // 检测分隔符
+      const firstLine = lines[0];
+      let delimiter = '\t';
+      if (firstLine.includes('\t')) delimiter = '\t';
+      else if (firstLine.includes(',')) delimiter = ',';
+      else if (firstLine.includes('  ')) delimiter = '  ';
+      else delimiter = ' ';
+
+      let successCount = 0;
+      for (const line of lines) {
+        const parts = line.split(delimiter).map(p => p.trim()).filter(Boolean);
+        if (parts.length < 1) continue;
+        
+        const name = parts[0] || '';
+        const position = parts[1] || '';
+        const phone = parts[2] || '';
+        const whatsapp = parts[3] || '';
+        const email = parts[4] || '';
+        const remarks = parts[5] || '';
+
+        if (!name) continue;
+
+        try {
+          await fetch(`/api/customers/${customerId}/contacts`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, position, phone, whatsapp, email, remarks }),
+          });
+          successCount++;
+        } catch {}
+      }
+      
+      alert(`成功导入 ${successCount} 个联系人`);
+      setShowBatchImport(false);
+      setBatchText('');
+      fetchData();
+    } catch (error) {
+      console.error('Error batch importing:', error);
+      alert('导入失败');
+    } finally {
+      setImporting(false);
+    }
   };
   
   // 删除联系人
@@ -207,13 +264,45 @@ export default function CustomerContactsPage() {
           <h1 className="text-2xl font-bold">联系人管理</h1>
           <p className="text-sm text-gray-500 mt-1">客户：{customerName}</p>
         </div>
-        <Button
-          onClick={addContact}
-          icon={<Plus size={16} />}
-        >
-          添加联系人
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => setShowBatchImport(!showBatchImport)} disabled={importing}>
+            <Upload size={16} className="mr-1" /> 批量导入
+          </Button>
+          <Button onClick={addContact} icon={<Plus size={16} />}>
+            添加联系人
+          </Button>
+        </div>
       </div>
+
+      {/* 批量导入区域 */}
+      {showBatchImport && (
+        <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-medium text-blue-900">批量导入联系人</h3>
+            <button onClick={() => setShowBatchImport(false)} className="p-1 hover:bg-blue-100 rounded"><X size={16} /></button>
+          </div>
+          <p className="text-xs text-blue-700 mb-2">
+            每行一个联系人，格式：姓名 职位 电话 WhatsApp 邮箱 备注（用 Tab/逗号/空格分隔）
+          </p>
+          <textarea
+            value={batchText}
+            onChange={(e) => setBatchText(e.target.value)}
+            rows={8}
+            className="w-full px-3 py-2 border border-blue-300 rounded-lg text-sm font-mono focus:border-blue-500"
+            placeholder={`张三\t经理\t+86-139-0000-0000\t+86-139-0000-0000\tzhang@example.com\t备注信息
+李四\t销售\t+86-138-0000-0000\t+86-138-0000-0000\tli@example.com\t
+王五\t技术\t+86-137-0000-0000\t+86-137-0000-0000\twang@example.com\t`}
+          />
+          <div className="flex gap-2 mt-2">
+            <Button onClick={handleBatchImport} loading={importing} className="text-sm">
+              开始导入
+            </Button>
+            <Button variant="secondary" onClick={() => { setShowBatchImport(false); setBatchText(''); }}>
+              取消
+            </Button>
+          </div>
+        </div>
+      )}
       
       {/* 联系人列表 */}
       {contacts.length === 0 ? (

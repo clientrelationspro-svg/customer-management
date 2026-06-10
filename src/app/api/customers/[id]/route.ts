@@ -13,6 +13,7 @@ export async function GET(
       where: { id: params.id },
       include: {
         contacts: true,
+        keyContact: true,
         orders: {
           orderBy: { createdAt: 'desc' },
           take: 10,
@@ -61,6 +62,7 @@ export async function PATCH(
       email,
       socialMedia,
       contactAddress,
+      keyContactId,
       status,
     } = body;
 
@@ -86,6 +88,7 @@ export async function PATCH(
         ...(email !== undefined && { email }),
         ...(socialMedia !== undefined && { socialMedia }),
         ...(contactAddress !== undefined && { contactAddress }),
+        ...(keyContactId !== undefined && { keyContactId: keyContactId || null }),
         ...(status !== undefined && { status }),
       },
       include: {
