@@ -1,0 +1,205 @@
+// Prisma Schema for Customer Management System
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 客户模型
+model Customer {
+  id              String   @id @default(cuid())
+  // 基本信息
+  companyName     String   @map("company_name") // 公司名称
+  enterpriseScale String?  @map("enterprise_scale") // 企业规模
+  country         String?  @map("country") // 国家
+  establishDate   DateTime? @map("establish_date") // 成立日期
+  address         String?  @map("address") // 地址
+  regCapital      String?  @map("reg_capital") // 注册资本
+  industry        String?  @map("industry") // 公司行业
+  employeeCount   Int?     @map("employee_count") // 员工人数
+  notes           String?  @map("notes") // 备注信息
+  
+  // 联系方式
+  phone           String?  @map("phone") // 电话
+  fax             String?  @map("fax") // 传真
+  website         String?  @map("website") // 网址
+  email           String?  @unique @map("email") // 邮箱
+  socialMedia     String?  @map("social_media") // 社媒
+  contactAddress  String?  @map("contact_address") // 联系地址
+  
+  status          String   @default("active") @map("status")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  orders          Order[]
+  files           File[]   @relation("CustomerFiles")
+  contacts        Contact[] // 关联联系人
+  
+  @@map("customers")
+}
+
+// 客户跟进模型
+model FollowUp {
+  id                String   @id @default(cuid())
+  customerId        String   @map("customer_id")
+  contactId         String?  @map("contact_id")
+  phone             String?  @map("phone")
+  whatsapp          String?  @map("whatsapp")
+  email             String?  @map("email")
+  followUpMatters   String   @map("follow_up_matters") // 逗号分隔：开发,报价,样品,谈判,成交,其他
+  contactMethod     String   @map("contact_method") // 电话,邮件,WhatsApp,微信,其他
+  nextAction        String?  @map("next_action")
+  priority          String   @default("medium") @map("priority") // high,medium,low
+  status            String   @default("in_progress") @map("status") // in_progress,completed,archived
+  lastFollowUpDate  DateTime @map("last_follow_up_date")
+  nextFollowUpDate  DateTime? @map("next_follow_up_date")
+  remarks           String?  @map("remarks")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  
+  customer          Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  contact           Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  
+  @@map("follow_ups")
+}
+
+// 联系人模型
+model Contact {
+  id            String   @id @default(cuid())
+  customerId    String   @map("customer_id")
+  name          String   @map("name") // 姓名
+  position      String?  @map("position") // 职位
+  email         String?  @map("email") // 邮箱
+  whatsapp      String?  @map("whatsapp") // WhatsApp
+  phone         String?  @map("phone") // 电话
+  remarks       String?  @map("remarks") // 备注信息
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  
+  customer      Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  
+  @@map("contacts")
+}
+
+// 供应商模型
+model Supplier {
+  id            String   @id @default(cuid())
+  name          String   @map("name")
+  email         String?  @unique @map("email")
+  phone         String?  @map("phone")
+  company       String?  @map("company")
+  address       String?  @map("address")
+  contactPerson String?  @map("contact_person")
+  status        String   @default("active") @map("status")
+  notes         String?  @map("notes")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  
+  products      Product[]
+  files         File[]   @relation("SupplierFiles")
+  
+  @@map("suppliers")
+}
+
+// 产品模型
+model Product {
+  id          String   @id @default(cuid())
+  name        String   @map("name")
+  sku         String   @unique @map("sku")
+  description String?  @map("description")
+  price       Decimal  @map("price")
+  cost        Decimal? @map("cost")
+  stock       Int      @default(0) @map("stock")
+  minStock    Int      @default(0) @map("min_stock")
+  category    String?  @map("category")
+  status      String   @default("active") @map("status")
+  supplierId  String?  @map("supplier_id")
+  images      String?  @map("images") // 存储 JSON 字符串
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  supplier    Supplier? @relation(fields: [supplierId], references: [id])
+  orderItems  OrderItem[]
+  files       File[]    @relation("ProductFiles")
+  
+  @@map("products")
+}
+
+// 订单模型
+model Order {
+  id          String   @id @default(cuid())
+  orderNo     String   @unique @map("order_no")
+  customerId  String   @map("customer_id")
+  status      String   @default("pending") @map("status")
+  totalAmount Decimal  @map("total_amount")
+  paidAmount  Decimal  @default(0) @map("paid_amount")
+  notes       String?  @map("notes")
+  orderDate   DateTime @default(now()) @map("order_date")
+  deliveryDate DateTime? @map("delivery_date")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  customer    Customer @relation(fields: [customerId], references: [id])
+  items       OrderItem[]
+  files       File[]   @relation("OrderFiles")
+  
+  @@map("orders")
+}
+
+// 订单项模型
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String   @map("order_id")
+  productId   String   @map("product_id")
+  quantity    Int      @map("quantity")
+  unitPrice   Decimal  @map("unit_price")
+  totalPrice  Decimal  @map("total_price")
+  createdAt   DateTime @default(now()) @map("created_at")
+  
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id])
+  
+  @@map("order_items")
+}
+
+// 文件模型 - 使用可选外键关联到不同实体
+model File {
+  id            String   @id @default(cuid())
+  filename      String   @map("filename")
+  originalName  String   @map("original_name")
+  filePath      String   @map("file_path")
+  fileSize      Int      @map("file_size")
+  mimeType      String   @map("mime_type")
+  uploadedBy    String?  @map("uploaded_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+  
+  // 可选的外键字段
+  customerId    String?  @map("customer_id")
+  supplierId    String?  @map("supplier_id")
+  orderId       String?  @map("order_id")
+  productId     String?  @map("product_id")
+  
+  // 关系定义
+  customer      Customer? @relation("CustomerFiles", fields: [customerId], references: [id], onDelete: Cascade)
+  supplier      Supplier? @relation("SupplierFiles", fields: [supplierId], references: [id], onDelete: Cascade)
+  order         Order?    @relation("OrderFiles", fields: [orderId], references: [id], onDelete: Cascade)
+  product       Product?  @relation("ProductFiles", fields: [productId], references: [id], onDelete: Cascade)
+  
+  @@map("files")
+}
+
+// 用户模型 (用于未来扩展)
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique @map("email")
+  name        String?  @map("name")
+  password    String   @map("password")
+  role        String   @default("user") @map("role")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  @@map("users")
+}
