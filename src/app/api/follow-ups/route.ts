@@ -70,7 +70,6 @@ export async function POST(request: NextRequest) {
             companyName: companyName.trim(),
             phone: phone || null,
             email: email || null,
-            whatsapp: null,
             status: 'active',
           },
         });
