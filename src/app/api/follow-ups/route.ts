@@ -50,20 +50,43 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const {
-      customerId, contactId, phone, whatsapp, email,
+      customerId, companyName, contactId, phone, whatsapp, email,
       followUpMatters, contactMethod, nextAction, priority, status,
       lastFollowUpDate, nextFollowUpDate, remarks,
     } = body;
 
-    if (!customerId || !followUpMatters || !contactMethod || !lastFollowUpDate) {
-      return NextResponse.json({ error: '缺少必填字段' }, { status: 400 });
+    let actualCustomerId = customerId;
+
+    // 如果没有选择客户但输入了新公司名称，自动创建客户
+    if (!actualCustomerId && companyName?.trim()) {
+      const existingCustomer = await prisma.customer.findFirst({
+        where: { companyName: { equals: companyName.trim(), mode: 'insensitive' } },
+      });
+      if (existingCustomer) {
+        actualCustomerId = existingCustomer.id;
+      } else {
+        const newCustomer = await prisma.customer.create({
+          data: {
+            companyName: companyName.trim(),
+            phone: phone || null,
+            email: email || null,
+            whatsapp: null,
+            status: 'active',
+          },
+        });
+        actualCustomerId = newCustomer.id;
+      }
+    }
+
+    if (!actualCustomerId || !followUpMatters || !contactMethod || !lastFollowUpDate) {
+      return NextResponse.json({ error: '缺少必填字段（客户或公司名称）' }, { status: 400 });
     }
 
     const matters = Array.isArray(followUpMatters) ? followUpMatters.join(',') : followUpMatters;
 
     const followUp = await prisma.followUp.create({
       data: {
-        customerId,
+        customerId: actualCustomerId,
         contactId: contactId || null,
         phone: phone || null,
         whatsapp: whatsapp || null,

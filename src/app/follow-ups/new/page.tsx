@@ -28,6 +28,7 @@ export default function NewFollowUpPage() {
   
   const [formData, setFormData] = useState({
     customerId: '',
+    companyName: '',  // 新建客户时使用
     contactId: '',
     phone: '',
     whatsapp: '',
@@ -81,8 +82,8 @@ export default function NewFollowUpPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.customerId) {
-      alert('请选择客户');
+    if (!formData.customerId && !formData.companyName.trim()) {
+      alert('请选择客户或输入新客户公司名称');
       return;
     }
     
@@ -184,17 +185,36 @@ export default function NewFollowUpPage() {
                   <select
                     name="customerId"
                     value={formData.customerId}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    onChange={(e) => {
+                      handleChange(e);
+                      if (e.target.value) setFormData(prev => ({ ...prev, companyName: '' }));
+                    }}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent rounded-b-none"
                   >
-                    <option value="">请选择客户</option>
+                    <option value="">选择已有客户</option>
                     {customers.map((customer) => (
                       <option key={customer.id} value={customer.id}>
                         {customer.companyName}
                       </option>
                     ))}
                   </select>
+                  <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-t-0 border-gray-300 rounded-b-lg">
+                    <span className="text-xs text-gray-500 whitespace-nowrap">或新建：</span>
+                    <input
+                      type="text"
+                      name="companyName"
+                      value={formData.companyName}
+                      onChange={(e) => {
+                        handleChange(e);
+                        if (e.target.value) setFormData(prev => ({ ...prev, customerId: '' }));
+                      }}
+                      placeholder="输入新客户公司名称自动创建"
+                      className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:border-blue-500 focus:ring-blue-500"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">
+                    选择已有客户或输入新公司名称，系统会自动在客户管理中创建
+                  </p>
                 </div>
 
                 <div>
