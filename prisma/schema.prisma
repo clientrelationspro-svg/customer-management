@@ -43,6 +43,7 @@ model Customer {
   files           File[]   @relation("CustomerFiles")
   contacts        Contact[] // 关联联系人
   followUps       FollowUp[] // 关联跟进记录
+  scripts         FollowUpScript[] // 关联跟进话术
   
   @@map("customers")
 }
@@ -70,6 +71,23 @@ model FollowUp {
   contact           Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
   
   @@map("follow_ups")
+}
+
+// 跟进话术模型
+model FollowUpScript {
+  id                String   @id @default(cuid())
+  customerId        String   @map("customer_id")
+  type              String   @map("type") // whatsapp, email, phone
+  title             String   @map("title")
+  content           String   @map("content")
+  lastSentAt        DateTime? @map("last_sent_at")
+  nextFollowUpDate  DateTime? @map("next_follow_up_date")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  customer          Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("follow_up_scripts")
 }
 
 // 联系人模型
