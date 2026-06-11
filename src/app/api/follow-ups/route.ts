@@ -86,7 +86,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(followUp, { status: 201 });
   } catch (error: any) {
     console.error('Error in POST /api/follow-ups:', error);
-    const message = error?.message || error?.code || '未知错误';
-    return NextResponse.json({ error: '创建跟进记录失败: ' + message }, { status: 500 });
+    return NextResponse.json(
+      { error: '创建跟进记录失败，请确保已选择有效客户' }, 
+      { status: 500 }
+    );
   }
 }
