@@ -22,6 +22,7 @@ model Customer {
   industry        String?  @map("industry") // 公司行业
   employeeCount   Int?     @map("employee_count") // 员工人数
   notes           String?  @map("notes") // 备注信息
+  level           String?  @default("C") @map("level") // 客户等级 A,B,C,D,E
   
   // 联系方式
   phone           String?  @map("phone") // 电话

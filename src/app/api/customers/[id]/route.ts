@@ -63,6 +63,7 @@ export async function PATCH(
       socialMedia,
       contactAddress,
       keyContactId,
+      level,
       status,
     } = body;
 
@@ -89,6 +90,7 @@ export async function PATCH(
         ...(socialMedia !== undefined && { socialMedia }),
         ...(contactAddress !== undefined && { contactAddress }),
         ...(keyContactId !== undefined && { keyContactId: keyContactId || null }),
+        ...(level !== undefined && { level }),
         ...(status !== undefined && { status }),
       },
       include: {

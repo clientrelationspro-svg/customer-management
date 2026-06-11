@@ -9,12 +9,14 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
     const status = searchParams.get('status');
+    const level = searchParams.get('level');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
     const skip = (page - 1) * limit;
 
     const where: any = {};
     
+    if (level) where.level = level;
     if (search) {
       where.OR = [
         { companyName: { contains: search } },
@@ -38,7 +40,7 @@ export async function GET(request: NextRequest) {
             select: { orders: true }
           }
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { updatedAt: 'desc' },
         skip,
         take: limit,
       }),
@@ -85,6 +87,7 @@ export async function POST(request: NextRequest) {
       socialMedia,
       contactAddress,
       keyContactId,
+      level,
       status,
       contacts,
     } = body;
@@ -115,6 +118,7 @@ export async function POST(request: NextRequest) {
         socialMedia,
         contactAddress,
         keyContactId: keyContactId || null,
+        level: level || 'C',
         status: status || 'active',
         contacts: contacts && contacts.length > 0 ? {
           create: contacts.map((contact: any) => ({

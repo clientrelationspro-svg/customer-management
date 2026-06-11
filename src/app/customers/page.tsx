@@ -15,6 +15,7 @@ interface Customer {
   phone?: string;
   email?: string;
   website?: string;
+  level?: string;
   status: string;
   contacts: Contact[];
   keyContact?: Contact | null;
@@ -22,6 +23,7 @@ interface Customer {
     orders: number;
   };
   createdAt: string;
+  updatedAt: string;
 }
 
 interface Contact {
@@ -40,12 +42,13 @@ export default function CustomersPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
+  const [level, setLevel] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     fetchCustomers();
-  }, [search, status, page]);
+  }, [search, status, level, page]);
 
   const fetchCustomers = async () => {
     try {
@@ -53,6 +56,7 @@ export default function CustomersPage() {
       const params = new URLSearchParams();
       if (search) params.append('search', search);
       if (status !== 'all') params.append('status', status);
+      if (level) params.append('level', level);
       params.append('page', page.toString());
       params.append('limit', '10');
 
@@ -150,6 +154,18 @@ export default function CustomersPage() {
             <option value="inactive">停用</option>
             <option value="lead">潜在</option>
           </select>
+          <select
+            className="px-4 py-2 border rounded-lg"
+            value={level}
+            onChange={(e) => setLevel(e.target.value)}
+          >
+            <option value="">全部等级</option>
+            <option value="A">A 级</option>
+            <option value="B">B 级</option>
+            <option value="C">C 级</option>
+            <option value="D">D 级</option>
+            <option value="E">E 级</option>
+          </select>
         </div>
 
         {loading ? (
@@ -159,6 +175,7 @@ export default function CustomersPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b">
+                  <th className="text-left p-3">等级</th>
                   <th className="text-left p-3">公司名称</th>
                   <th className="text-left p-3">国家</th>
                   <th className="text-left p-3">行业</th>
@@ -174,15 +191,22 @@ export default function CustomersPage() {
                 </tr>
               </thead>
               <tbody>
-                {customers.length === 0 ? (
+                {customers.length === 0 && (
                   <tr>
-                    <td colSpan={12} className="text-center py-8 text-gray-500">
+                    <td colSpan={14} className="text-center py-8 text-gray-500">
                       暂无客户数据
                     </td>
                   </tr>
-                ) : (
-                  customers.map((customer) => (
+                )}
+                {customers.map((customer) => {
+                  const levelColors: Record<string, string> = { A: 'bg-red-100 text-red-700', B: 'bg-orange-100 text-orange-700', C: 'bg-blue-100 text-blue-700', D: 'bg-green-100 text-green-700', E: 'bg-gray-100 text-gray-600' };
+                  return (
                     <tr key={customer.id} className="border-b hover:bg-gray-50">
+                      <td className="p-3">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${levelColors[customer.level || 'C'] || 'bg-gray-100 text-gray-600'}`}>
+                          {customer.level || 'C'}
+                        </span>
+                      </td>
                       <td className="p-3">
                         <div className="flex items-center gap-2">
                           <Building2 size={16} className="text-gray-400" />
@@ -260,8 +284,7 @@ export default function CustomersPage() {
                         </div>
                       </td>
                     </tr>
-                  ))
-                )}
+                  )})}
               </tbody>
             </table>
           </div>
