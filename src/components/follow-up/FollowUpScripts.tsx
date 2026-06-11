@@ -95,19 +95,31 @@ export default function FollowUpScripts({
   };
 
   // 导入话术文件
+  const [importText, setImportText] = useState('');
+
   const handleImport = async () => {
-    if (!importFile) { alert('请选择文件'); return; }
     setImporting(true);
     setImportResult(null);
     try {
-      const fd = new FormData();
-      fd.append('file', importFile);
-      fd.append('customerId', customerId);
-      const res = await fetch('/api/follow-ups/import-markdown', { method: 'POST', body: fd });
-      const result = await res.json();
-      setImportResult(result);
-      if (result.success) {
-        fetchScripts();
+      if (importFile) {
+        const fd = new FormData();
+        fd.append('file', importFile);
+        fd.append('customerId', customerId);
+        const res = await fetch('/api/follow-ups/import-markdown', { method: 'POST', body: fd });
+        const result = await res.json();
+        setImportResult(result);
+        if (result.success) { fetchScripts(); setImportFile(null); }
+      } else if (importText.trim()) {
+        const res = await fetch('/api/follow-ups/import-markdown', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: importText, customerId }),
+        });
+        const result = await res.json();
+        setImportResult(result);
+        if (result.success) { fetchScripts(); setImportText(''); }
+      } else {
+        alert('请粘贴内容或选择文件');
       }
     } catch (error) {
       console.error('Error importing:', error);
@@ -334,27 +346,48 @@ export default function FollowUpScripts({
       {showImport && (
         <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="font-medium text-blue-900 text-sm">导入 AI 生成的话术</h3>
-            <button onClick={() => setShowImport(false)} className="p-1 hover:bg-blue-100 rounded"><X className="w-4 h-4 text-blue-600" /></button>
+            <h3 className="font-medium text-blue-900 text-sm">导入 AI 生成内容</h3>
+            <button onClick={() => { setShowImport(false); setImportText(''); setImportFile(null); setImportResult(null); }} className="p-1 hover:bg-blue-100 rounded"><X className="w-4 h-4 text-blue-600" /></button>
           </div>
-          <p className="text-xs text-blue-700 mb-3">
-            导入内容将自动关联到当前客户，无需选择。
+          <p className="text-xs text-blue-700 mb-2">
+            📋 粘贴 AI 生成的内容或上传文件，自动解析导入
           </p>
-          <div className="flex items-center gap-3">
-            <input
-              type="file"
-              accept=".md,.txt"
-              onChange={(e) => { if (e.target.files?.[0]) setImportFile(e.target.files[0]); }}
-              className="flex-1 text-sm"
+          <div className="space-y-3">
+            <textarea
+              value={importText}
+              onChange={(e) => { setImportText(e.target.value); setImportFile(null); }}
+              rows={8}
+              className="w-full px-3 py-2 border border-blue-300 rounded-lg text-xs font-mono focus:border-blue-500"
+              placeholder={`=== 新增跟进 ===
+followUpMatters: "开发,报价"
+contactMethod: "whatsapp"
+nextAction: "发送报价单"
+...
+
+=== 新增话术 ===
+type: "whatsapp"
+title: "问候话术"
+content: |
+  Hi，感谢您的询价！
+  我是来自XX公司的销售经理。`}
             />
-            <Button size="sm" onClick={handleImport} loading={importing} disabled={!importFile}>
-              导入
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+              <span>或上传文件：</span>
+              <input
+                type="file"
+                accept=".md,.txt"
+                onChange={(e) => { if (e.target.files?.[0]) { setImportFile(e.target.files[0]); setImportText(''); } }}
+                className="flex-1 text-xs"
+              />
+            </div>
+            <Button size="sm" onClick={handleImport} loading={importing} disabled={!importText.trim() && !importFile}>
+              开始导入
             </Button>
           </div>
           {importResult && (
             <div className={`mt-3 p-3 rounded text-xs ${importResult.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
               {importResult.message || importResult.error || (importResult.success ? `成功创建 ${importResult.created} 条记录` : '导入失败')}
-              {importResult.results && importResult.results.length > 0 && (
+              {importResult.results?.filter((r: any) => r.status === 'created').length > 0 && (
                 <div className="mt-1 space-y-0.5">
                   {importResult.results.filter((r: any) => r.status === 'created').map((r: any, i: number) => (
                     <div key={i}>✅ {r.type === 'script' ? `话术: ${r.title}` : '跟进记录'}</div>

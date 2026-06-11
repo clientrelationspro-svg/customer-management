@@ -1,134 +1,136 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export const dynamic = 'force-dynamic';
 
-// 导出跟进+话术模板
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const customerId = searchParams.get('customerId');
 
-    let md = `# 客户跟进导入模板\n\n`;
-    md += `> 📋 将本文件交给 AI 填写，然后导入系统。\n`;
-    md += `> 💡 AI 会识别 `;
-    md += `\`=== 新增跟进 ===\` 和 \`=== 新增话术 ===\` 标记并填写对应内容。\n\n`;
+    let prompt = '';
 
     if (customerId) {
-      // 查询客户信息
-      const customers = await prisma.$queryRaw<any[]>`
-        SELECT id, company_name, phone, email FROM customers WHERE id = ${customerId} LIMIT 1
-      `;
-      if (!customers[0]) {
+      const customer = await prisma.customer.findUnique({
+        where: { id: customerId },
+        include: {
+          contacts: true,
+          keyContact: true,
+        },
+      });
+
+      if (!customer) {
         return NextResponse.json({ error: '客户不存在' }, { status: 404 });
       }
-      const customer = customers[0];
 
-      md += `## 客户: ${customer.company_name}\n\n`;
-      md += `> 📱 电话: ${customer.phone || '无'} | 📧 邮箱: ${customer.email || '无'}\n\n`;
+      // AI 提示词头部
+      prompt += `你是一名专业的外贸业务员。请为以下客户生成跟进记录和沟通话术。\n\n`;
 
-      // 已有跟进记录（参考）
-      const followUps = await prisma.$queryRaw<any[]>`
-        SELECT * FROM follow_ups WHERE customer_id = ${customerId} ORDER BY created_at DESC LIMIT 5
-      `;
-      if (followUps.length > 0) {
-        md += `### 📝 已有跟进记录（供参考）\n\n`;
-        followUps.forEach((f, i) => {
-          md += `| 字段 | 值 |\n|------|----|\n`;
-          md += `| 日期 | ${new Date(f.created_at).toLocaleDateString('zh-CN')} |\n`;
-          md += `| 电话 | ${f.phone || '-'} |\n`;
-          md += `| WhatsApp | ${f.whatsapp || '-'} |\n`;
-          md += `| 邮箱 | ${f.email || '-'} |\n`;
-          md += `| 跟进事宜 | ${f.follow_up_matters || '-'} |\n`;
-          md += `| 联系方式 | ${f.contact_method || '-'} |\n`;
-          md += `| 下一步动作 | ${f.next_action || '-'} |\n`;
-          md += `| 优先级 | ${f.priority || '-'} |\n`;
-          md += `| 状态 | ${f.status || '-'} |\n`;
-          md += `| 上次跟进 | ${f.last_follow_up_date ? new Date(f.last_follow_up_date).toLocaleDateString('zh-CN') : '-'} |\n`;
-          md += `| 下次跟进 | ${f.next_follow_up_date ? new Date(f.next_follow_up_date).toLocaleDateString('zh-CN') : '-'} |\n\n`;
+      // 客户信息
+      prompt += `## 客户信息\n`;
+      prompt += `- 公司名称: ${customer.companyName}\n`;
+      if (customer.industry) prompt += `- 行业: ${customer.industry}\n`;
+      if (customer.country) prompt += `- 国家: ${customer.country}\n`;
+      if (customer.enterpriseScale) prompt += `- 规模: ${customer.enterpriseScale}\n`;
+      if (customer.address) prompt += `- 地址: ${customer.address}\n`;
+
+      // 关键联系人
+      const kc = customer.keyContact;
+      if (kc) {
+        prompt += `\n## 关键联系人\n`;
+        prompt += `- 姓名: ${kc.name}\n`;
+        if (kc.position) prompt += `- 职位: ${kc.position}\n`;
+        if (kc.phone) prompt += `- 电话: ${kc.phone}\n`;
+        if (kc.email) prompt += `- 邮箱: ${kc.email}\n`;
+        if (kc.whatsapp) prompt += `- WhatsApp: ${kc.whatsapp}\n`;
+      }
+
+      // 所有联系人
+      if (customer.contacts.length > 0) {
+        prompt += `\n## 所有联系人\n`;
+        customer.contacts.forEach((c, i) => {
+          prompt += `${i + 1}. ${c.name}`;
+          if (c.position) prompt += ` - ${c.position}`;
+          if (c.phone) prompt += ` - ${c.phone}`;
+          if (c.whatsapp) prompt += ` - ${c.whatsapp}`;
+          prompt += `\n`;
         });
       }
 
-      // 已有话术（参考）
-      const scripts = await prisma.$queryRaw<any[]>`
-        SELECT * FROM follow_up_scripts WHERE customer_id = ${customerId} ORDER BY created_at DESC LIMIT 10
-      `;
-      if (scripts.length > 0) {
-        md += `### 💬 已有话术（供参考）\n\n`;
-        scripts.forEach(s => {
-          md += `- **${s.title}** (${s.type}) | 创建于 ${new Date(s.created_at).toLocaleDateString('zh-CN')}\n`;
-          md += `  \`\`\`\n  ${s.content.replace(/\n/g, '\n  ')}\n  \`\`\`\n\n`;
-        });
-      }
+      // 生成要求
+      prompt += `\n## 请生成以下内容\n`;
+      prompt += `1. 一条跟进记录，分析客户当前阶段并制定跟进策略\n`;
+      prompt += `2. 2-3条沟通话术（WhatsApp/邮件/电话），内容自然专业\n\n`;
+
+      // 格式说明
+      prompt += `## 输出格式（严格遵守）\n`;
+      prompt += `\`\`\`\n`;
+      prompt += `=== 新增跟进 ===\n`;
+      prompt += `followUpMatters: "开发,报价"       # 多选用逗号分隔: 开发,报价,样品,谈判,成交,其他\n`;
+      prompt += `contactMethod: "whatsapp"          # phone,email,whatsapp,wechat,other\n`;
+      prompt += `nextAction: "发送报价单跟进邮件"    # 下一步动作\n`;
+      prompt += `priority: "high"                   # high,medium,low\n`;
+      prompt += `status: "in_progress"              # in_progress,completed,archived\n`;
+      prompt += `lastFollowUpDate: "${new Date().toISOString().split('T')[0]}"\n`;
+      prompt += `nextFollowUpDate: ""               # 下次跟进日期 YYYY-MM-DD\n`;
+      prompt += `remarks: "客户对价格比较敏感"       # 备注\n\n`;
+
+      prompt += `=== 新增话术 ===\n`;
+      prompt += `type: "whatsapp"\n`;
+      prompt += `title: "话术标题"\n`;
+      prompt += `content: |\n`;
+      prompt += `  话术内容（多行）\n`;
+      prompt += `nextFollowUpDate: ""\n\n`;
+
+      prompt += `type: "email"\n`;
+      prompt += `title: "邮件标题"\n`;
+      prompt += `content: |\n`;
+      prompt += `  邮件内容（多行）\n`;
+      prompt += `nextFollowUpDate: ""\n`;
+      prompt += `\`\`\`\n`;
+    } else {
+      // 通用模板
+      prompt += `你是一名专业的外贸业务员。请为以下客户生成跟进记录和沟通话术。\n\n`;
+      prompt += `## 客户信息\n`;
+      prompt += `- 公司名称: [请填写客户公司名称]\n`;
+      prompt += `- 行业: [请填写行业]\n`;
+      prompt += `- 国家: [请填写国家]\n`;
+      prompt += `- 联系人: [请填写联系人名称]\n`;
+      prompt += `- 电话: [请填写电话]\n`;
+      prompt += `- WhatsApp: [请填写WhatsApp]\n\n`;
+
+      prompt += `## 请生成以下内容\n`;
+      prompt += `1. 一条跟进记录\n`;
+      prompt += `2. 2-3条沟通话术\n\n`;
+
+      prompt += `## 输出格式\n`;
+      prompt += `\`\`\`\n`;
+      prompt += `=== 新增跟进 ===\n`;
+      prompt += `phone: ""\nwhatsapp: ""\nemail: ""\n`;
+      prompt += `followUpMatters: ""  # 开发,报价,样品,谈判,成交,其他\n`;
+      prompt += `contactMethod: ""   # phone,email,whatsapp,wechat,other\n`;
+      prompt += `nextAction: ""\npriority: "medium"  # high,medium,low\n`;
+      prompt += `status: "in_progress"\n`;
+      prompt += `lastFollowUpDate: "${new Date().toISOString().split('T')[0]}"\n`;
+      prompt += `nextFollowUpDate: ""\nremarks: ""\n\n`;
+
+      prompt += `=== 新增话术 ===\n`;
+      prompt += `type: "whatsapp"\ntitle: ""\ncontent: |\n  话术内容\nnextFollowUpDate: ""\n\n`;
+      prompt += `type: "email"\ntitle: ""\ncontent: |\n  邮件内容\nnextFollowUpDate: ""\n`;
+      prompt += `\`\`\`\n`;
     }
 
-    // 空白模板部分
-    md += `---\n\n`;
-    md += `## ⬇️ 以下为空白模板，请 AI 填写后导入 ⬇️\n\n`;
+    // 原始格式说明（供导入用）
+    prompt += `\n---\n`;
+    prompt += `💡 将以上 \`=== 新增跟进 ===\` 和 \`=== 新增话术 ===\` 之间的内容复制后，可在系统导入页面粘贴导入。\n`;
 
-    md += `\`\`\`yaml\n`;
-    md += `# ==========================================\n`;
-    md += `# 客户跟进记录 - 空白模板\n`;
-    md += `# 说明:\n`;
-    md += `#   followUpMatters: 开发,报价,样品,谈判,成交,其他 (多选用逗号分隔)\n`;
-    md += `#   contactMethod: phone, email, whatsapp, wechat, other\n`;
-    md += `#   priority: high, medium, low\n`;
-    md += `#   status: in_progress, completed, archived\n`;
-    md += `#   lastFollowUpDate / nextFollowUpDate: YYYY-MM-DD 格式\n`;
-    md += `# ==========================================\n\n`;
+    const fileName = customerId ? `follow-up-prompt-${customerId}.txt` : `follow-up-prompt.txt`;
 
-    md += `=== 新增跟进 ===\n`;
-    md += `phone: ""                 # 电话号码\n`;
-    md += `whatsapp: ""              # WhatsApp 号码\n`;
-    md += `email: ""                 # 邮箱地址\n`;
-    md += `followUpMatters: ""       # 跟进事宜 (开发,报价,样品,谈判,成交,其他)\n`;
-    md += `contactMethod: ""         # 联系方式 (phone,email,whatsapp,wechat,other)\n`;
-    md += `nextAction: ""            # 下一步动作\n`;
-    md += `priority: "medium"        # 优先级 (high,medium,low)\n`;
-    md += `status: "in_progress"     # 状态 (in_progress,completed,archived)\n`;
-    md += `lastFollowUpDate: "${new Date().toISOString().split('T')[0]}"  # 上次跟进日期\n`;
-    md += `nextFollowUpDate: ""      # 下次跟进日期\n`;
-    md += `remarks: ""               # 备注\n\n`;
-
-    md += `=== 新增话术 ===\n`;
-    md += `type: "whatsapp"           # 类型: whatsapp, email, phone\n`;
-    md += `title: ""                  # 话术标题\n`;
-    md += `content: |\n`;
-    md += `  Hi [客户名称]!\n`;
-    md += `  我是 [您的名字]，来自 [公司名称]。\n`;
-    md += `  关于 [项目/产品名称]，想跟您沟通一下。\n`;
-    md += `  期待您的回复！\n`;
-    md += `nextFollowUpDate: ""       # 下次跟进日期 (可选)\n`;
-    md += `# --- (用 type: 作为新话术分隔符) ---\n\n`;
-
-    md += `type: "email"\n`;
-    md += `title: ""\n`;
-    md += `content: |\n`;
-    md += `  尊敬的 [客户名称]：\n`;
-    md += `  \n`;
-    md += `  感谢您的询价！以下是我们的报价方案。\n`;
-    md += `  如有疑问请随时联系。\n`;
-    md += `  \n`;
-    md += `  此致\n`;
-    md += `  [您的名字]\n`;
-    md += `nextFollowUpDate: ""\n\n`;
-
-    md += `type: "phone"\n`;
-    md += `title: ""\n`;
-    md += `content: |\n`;
-    md += `  通话要点：\n`;
-    md += `  1. 自我介绍：您好，我是 [公司] 的 [名字]\n`;
-    md += `  2. 目的说明：关于 [项目]，想跟您电话沟通\n`;
-    md += `  3. 关键问题确认\n`;
-    md += `  4. 下一步安排\n`;
-    md += `nextFollowUpDate: ""\n`;
-    md += `\`\`\`\n`;
-
-    const fileName = customerId ? `follow-up-template-${customerId}.md` : `follow-up-template.md`;
-
-    return new NextResponse(md, {
+    return new NextResponse(prompt, {
       headers: {
-        'Content-Type': 'text/markdown; charset=utf-8',
+        'Content-Type': 'text/plain; charset=utf-8',
         'Content-Disposition': `attachment; filename="${encodeURIComponent(fileName)}"`,
       },
     });
