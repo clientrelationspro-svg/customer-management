@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
         address,
         regCapital,
         industry,
-        employeeCount: employeeCount ? parseInt(employeeCount) : null,
+        employeeCount: employeeCount || null,
         notes,
         phone,
         fax,

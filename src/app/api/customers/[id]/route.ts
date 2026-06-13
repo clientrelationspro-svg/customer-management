@@ -79,9 +79,7 @@ export async function PATCH(
         ...(address !== undefined && { address }),
         ...(regCapital !== undefined && { regCapital }),
         ...(industry !== undefined && { industry }),
-        ...(employeeCount !== undefined && { 
-          employeeCount: employeeCount ? parseInt(employeeCount) : null 
-        }),
+        ...(employeeCount !== undefined && { employeeCount: employeeCount || null }),
         ...(notes !== undefined && { notes }),
         ...(phone !== undefined && { phone }),
         ...(fax !== undefined && { fax }),

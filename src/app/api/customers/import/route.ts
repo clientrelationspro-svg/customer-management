@@ -323,8 +323,7 @@ export async function POST(request: NextRequest) {
               const d = parseDateFlexible(value);
               if (d) customerData[mapped.field] = d;
             } else if (mapped.field === 'employeeCount') {
-              const num = parseInt(strValue);
-              if (!isNaN(num)) customerData[mapped.field] = num;
+              customerData[mapped.field] = strValue;
             } else {
               customerData[mapped.field] = strValue;
             }

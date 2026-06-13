@@ -166,7 +166,7 @@ export default function NewCustomerPage() {
       address: formData.address || null,
       regCapital: formData.regCapital || null,
       industry: formData.industry || null,
-      employeeCount: formData.employeeCount ? parseInt(formData.employeeCount) : null,
+      employeeCount: formData.employeeCount || null,
       notes: formData.notes || null,
       fax: formData.fax || null,
       website: formData.website || null,
@@ -374,11 +374,12 @@ export default function NewCustomerPage() {
             <div className="mb-4">
               <label className="block text-sm font-medium mb-1">成立日期</label>
               <input
-                type="date"
+                type="text"
                 name="establishDate"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
                 value={formData.establishDate}
                 onChange={handleInputChange}
+                placeholder="如: 2005年 或 2005-06-15"
               />
             </div>
             
@@ -425,13 +426,12 @@ export default function NewCustomerPage() {
             <div className="mb-4">
               <label className="block text-sm font-medium mb-1">员工人数</label>
               <input
-                type="number"
+                type="text"
                 name="employeeCount"
-                min="0"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
                 value={formData.employeeCount}
                 onChange={handleInputChange}
-                placeholder="请输入员工人数"
+                placeholder="如: 500 或 1000-2000"
               />
             </div>
             

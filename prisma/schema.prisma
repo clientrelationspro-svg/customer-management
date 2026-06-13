@@ -20,7 +20,7 @@ model Customer {
   address         String?  @map("address") // 地址
   regCapital      String?  @map("reg_capital") // 注册资本
   industry        String?  @map("industry") // 公司行业
-  employeeCount   Int?     @map("employee_count") // 员工人数
+  employeeCount   String?  @map("employee_count") // 员工人数
   notes           String?  @map("notes") // 备注信息
   level           String?  @default("C") @map("level") // 客户等级 A,B,C,D,E
   

@@ -14,7 +14,7 @@ interface Customer {
   address?: string;
   regCapital?: string;
   industry?: string;
-  employeeCount?: number;
+  employeeCount?: string;
   notes?: string;
   phone?: string;
   fax?: string;
@@ -227,7 +227,7 @@ export default function CustomerDetailPage() {
             {customer.employeeCount !== null && customer.employeeCount !== undefined && (
               <div>
                 <span className="text-sm text-gray-500">员工人数</span>
-                <p className="font-medium">{customer.employeeCount} 人</p>
+                <p className="font-medium">{customer.employeeCount}</p>
               </div>
             )}
 

@@ -153,12 +153,8 @@ ${formData.companyName || '公司名称'} | [规模] | [国家] | [成立日期]
         const d = new Date(merged.establishDate);
         if (!isNaN(d.getTime()) && d.getFullYear() > 1900) validDate = merged.establishDate;
       }
-      // 数字验证
-      let validEmpCount = null;
-      if (merged.employeeCount) {
-        const n = parseInt(merged.employeeCount);
-        if (!isNaN(n) && n > 0) validEmpCount = n;
-      }
+      // 员工人数（自由文本）
+      const validEmpCount = merged.employeeCount || null;
       
       const response = await fetch(`/api/customers/${customerId}`, {
         method: 'PATCH',
@@ -301,7 +297,7 @@ ${formData.companyName || '公司名称'} | [规模] | [国家] | [成立日期]
           address: formData.address || null,
           regCapital: formData.regCapital || null,
           industry: formData.industry || null,
-          employeeCount: formData.employeeCount ? parseInt(formData.employeeCount) : null,
+          employeeCount: formData.employeeCount || null,
           notes: formData.notes || null,
           phone: formData.phone || null,
           fax: formData.fax || null,
@@ -333,7 +329,7 @@ ${formData.companyName || '公司名称'} | [规模] | [国家] | [成立日期]
             address: formData.address || null,
             regCapital: formData.regCapital || null,
             industry: formData.industry || null,
-            employeeCount: formData.employeeCount ? parseInt(formData.employeeCount) : null,
+            employeeCount: formData.employeeCount || null,
             notes: formData.notes || null,
             phone: formData.phone || null,
             fax: formData.fax || null,
@@ -515,11 +511,12 @@ ${formData.companyName || '公司名称'} | [规模] | [国家] | [成立日期]
             <div className="mb-4">
               <label className="block text-sm font-medium mb-1">成立日期</label>
               <input
-                type="date"
+                type="text"
                 name="establishDate"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
                 value={formData.establishDate}
                 onChange={handleInputChange}
+                placeholder="如: 2005年 或 2005-06-15"
               />
             </div>
             
@@ -566,13 +563,12 @@ ${formData.companyName || '公司名称'} | [规模] | [国家] | [成立日期]
             <div className="mb-4">
               <label className="block text-sm font-medium mb-1">员工人数</label>
               <input
-                type="number"
+                type="text"
                 name="employeeCount"
-                min="0"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
                 value={formData.employeeCount}
                 onChange={handleInputChange}
-                placeholder="请输入员工人数"
+                placeholder="如: 500 或 1000-2000"
               />
             </div>
             
