@@ -166,10 +166,21 @@ function FollowUpsPageContent() {
     return methodMap[method] || method;
   };
 
-  const filteredFollowUps = followUps.filter(followUp => 
-    followUp.customer.companyName.toLowerCase().includes(search.toLowerCase()) ||
-    (followUp.contact?.name && followUp.contact.name.toLowerCase().includes(search.toLowerCase()))
-  );
+  const filteredFollowUps = followUps
+    .filter(followUp => 
+      followUp.customer.companyName.toLowerCase().includes(search.toLowerCase()) ||
+      (followUp.contact?.name && followUp.contact.name.toLowerCase().includes(search.toLowerCase()))
+    )
+    .sort((a, b) => {
+      const dateA = a.nextFollowUpDate ? new Date(a.nextFollowUpDate).getTime() : null;
+      const dateB = b.nextFollowUpDate ? new Date(b.nextFollowUpDate).getTime() : null;
+      // null dates go to the end
+      if (dateA === null && dateB === null) return 0;
+      if (dateA === null) return 1;
+      if (dateB === null) return -1;
+      // Descending order: nearer dates first
+      return dateB - dateA;
+    });
 
   return (
     <div>
