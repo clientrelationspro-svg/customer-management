@@ -134,7 +134,7 @@ export default function NewFollowUpPage() {
     }
     
     if (formData.followUpMatters.length === 0) {
-      alert('请选择跟进事宜');
+      alert('请选择开发事宜');
       return;
     }
     
@@ -144,7 +144,7 @@ export default function NewFollowUpPage() {
     }
     
     if (!formData.lastFollowUpDate) {
-      alert('请填写上次跟进日期');
+      alert('请填写上次开发日期');
       return;
     }
     
@@ -163,7 +163,7 @@ export default function NewFollowUpPage() {
       });
       
       if (res.ok) {
-        alert('跟进记录创建成功');
+        alert('开发记录创建成功');
         router.push('/follow-ups');
       } else {
         const error = await res.json();
@@ -171,7 +171,7 @@ export default function NewFollowUpPage() {
       }
     } catch (error) {
       console.error('Error creating follow-up:', error);
-      alert('创建跟进记录失败');
+      alert('创建开发记录失败');
     } finally {
       setLoading(false);
     }
@@ -186,7 +186,7 @@ export default function NewFollowUpPage() {
         >
           <ArrowLeft size={20} />
         </button>
-        <h1 className="text-2xl font-bold">新建跟进</h1>
+        <h1 className="text-2xl font-bold">新建开发</h1>
       </div>
       
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -297,10 +297,10 @@ export default function NewFollowUpPage() {
                 </div>
               </div>
 
-              {/* 跟进事宜 */}
+              {/* 开发事宜 */}
               <div className="mb-4">
                 <label className="block text-sm font-medium mb-2">
-                  跟进事宜 <span className="text-red-500">*</span>
+                  开发事宜 <span className="text-red-500">*</span>
                 </label>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {['开发', '报价', '样品', '谈判', '成交', '其他'].map((matter) => (
@@ -369,11 +369,11 @@ export default function NewFollowUpPage() {
           {/* 侧边栏 */}
           <div className="space-y-6">
             <Card>
-              <h3 className="text-lg font-semibold mb-4">跟进设置</h3>
+              <h3 className="text-lg font-semibold mb-4">开发设置</h3>
               
-              {/* 跟进优先级 */}
+              {/* 开发优先级 */}
               <div className="mb-4">
-                <label className="block text-sm font-medium mb-2">跟进优先级</label>
+                <label className="block text-sm font-medium mb-2">开发优先级</label>
                 <select
                   name="priority"
                   value={formData.priority}
@@ -386,9 +386,9 @@ export default function NewFollowUpPage() {
                 </select>
               </div>
 
-              {/* 跟进状态 */}
+              {/* 开发状态 */}
               <div className="mb-4">
-                <label className="block text-sm font-medium mb-2">跟进状态</label>
+                <label className="block text-sm font-medium mb-2">开发状态</label>
                 <select
                   name="status"
                   value={formData.status}
@@ -401,10 +401,10 @@ export default function NewFollowUpPage() {
                 </select>
               </div>
 
-              {/* 上次跟进日期 */}
+              {/* 上次开发日期 */}
               <div className="mb-4">
                 <label className="block text-sm font-medium mb-2">
-                  上次跟进日期 <span className="text-red-500">*</span>
+                  上次开发日期 <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="date"
@@ -416,9 +416,9 @@ export default function NewFollowUpPage() {
                 />
               </div>
 
-              {/* 下次跟进日期 */}
+              {/* 下次开发日期 */}
               <div className="mb-4">
-                <label className="block text-sm font-medium mb-2">下次跟进日期</label>
+                <label className="block text-sm font-medium mb-2">下次开发日期</label>
                 <input
                   type="date"
                   name="nextFollowUpDate"
@@ -438,7 +438,7 @@ export default function NewFollowUpPage() {
                   className="w-full"
                 >
                   <Save size={20} className="mr-2" />
-                  {loading ? '保存中...' : '保存跟进'}
+                  {loading ? '保存中...' : '保存开发'}
                 </Button>
                 <Button
                   type="button"

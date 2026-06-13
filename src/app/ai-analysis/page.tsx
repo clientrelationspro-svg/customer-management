@@ -199,7 +199,7 @@ function AiAnalysisPageContent() {
     if (scriptConfig.phone > 0) typeDescriptions.push(`电话 ${scriptConfig.phone} 条`);
     if (scriptConfig.wechat > 0) typeDescriptions.push(`微信 ${scriptConfig.wechat} 条`);
 
-    const prompt = `你是一名资深外贸业务专家。请根据以下客户信息，生成专业的外贸跟进话术。
+    const prompt = `你是一名资深外贸业务专家。请根据以下客户信息，生成专业的外贸开发话术。
 
 ---
 
@@ -224,7 +224,7 @@ ${typeDescriptions.map(t => `- ${t}`).join('\n')}
 ### 话术要求:
 1. **专业性**：语言专业、地道，符合外贸商务沟通规范
 2. **针对性**：结合客户行业、需求和合作切入点，避免泛泛而谈
-3. **多样性**：同类型话术要有不同角度（破冰、跟进、催单、解决问题等）
+3. **多样性**：同类型话术要有不同角度（破冰、开发、催单、解决问题等）
 4. **可操作性**：包含具体的下一步行动指引
 5. **人性化**：语气自然亲切，避免生硬的推销感
 6. **文化适配**：根据客户国家/地区调整沟通风格
@@ -591,7 +591,7 @@ ${typeDescriptions.map(t => `- ${t}`).join('\n')}
               <div className="mt-4 p-4 bg-gray-50 rounded-lg text-xs text-gray-600 space-y-2">
                 <p className="font-medium text-gray-700">高级设置说明：</p>
                 <p>• 每种类型最多生成 20 条话术</p>
-                <p>• 生成的话术会指定特定的沟通角度（破冰、跟进、催单等）</p>
+                <p>• 生成的话术会指定特定的沟通角度（破冰、开发、催单等）</p>
                 <p>• 提示词会自动适配客户行业和地区的沟通风格</p>
                 <p>• 生成后可直接粘贴到 ChatGPT、Claude 等 AI 工具中</p>
               </div>
@@ -674,7 +674,7 @@ ${typeDescriptions.map(t => `- ${t}`).join('\n')}
               <h2 className="text-lg font-semibold text-gray-900">导入 AI 话术</h2>
             </div>
             <p className="text-xs text-gray-500 mb-4">
-              将 AI 生成的话术内容粘贴到下方，系统自动解析并导入到指定客户的跟进话术库
+              将 AI 生成的话术内容粘贴到下方，系统自动解析并导入到指定客户的开发话术库
             </p>
 
             <div className="space-y-4">
@@ -814,7 +814,7 @@ Thank you for your inquiry...
 Hi [Name]，我们的[产品]...
 ---
 
-### [Email] 跟进邮件
+### [Email] 开发邮件
 Dear [Name]，
 Thank you for...`}</pre>
                 </div>
@@ -871,7 +871,7 @@ Hi [Name]，我们的产品...`}</pre>
               <span className="w-6 h-6 rounded-full bg-orange-200 flex items-center justify-center text-xs">4</span>
               智能导入
             </div>
-            <p className="text-orange-600 text-xs">粘贴 AI 结果，系统自动解析并导入到跟进话术库</p>
+            <p className="text-orange-600 text-xs">粘贴 AI 结果，系统自动解析并导入到开发话术库</p>
           </div>
         </div>
       </Card>

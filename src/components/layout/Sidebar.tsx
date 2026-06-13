@@ -20,7 +20,7 @@ import {
 const menuItems = [
   { icon: Home, label: '仪表盘', href: '/' },
   { icon: Users, label: '客户管理', href: '/customers' },
-  { icon: Calendar, label: '客户跟进', href: '/follow-ups' },
+  { icon: Calendar, label: '客户开发', href: '/follow-ups' },
   { icon: Target, label: 'AI客户分析', href: '/needs-analysis' },
   { icon: Package, label: '产品管理', href: '/products' },
   { icon: Truck, label: '供应商管理', href: '/suppliers' },

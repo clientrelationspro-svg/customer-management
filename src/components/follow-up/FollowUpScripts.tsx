@@ -133,7 +133,7 @@ export default function FollowUpScripts({
     }
   };
 
-  // 同步下次跟进日期到跟进记录
+  // 同步下次开发日期到开发记录
   const syncNextFollowUpDate = async (nextDate: string) => {
     if (!nextDate || !followUpId) return;
     try {
@@ -167,7 +167,7 @@ export default function FollowUpScripts({
         body: JSON.stringify({ customerId, ...formData }),
       });
       if (res.ok) {
-        // 如果设置了下次跟进日期，同步到跟进记录
+        // 如果设置了下次开发日期，同步到开发记录
         if (formData.nextFollowUpDate) {
           await syncNextFollowUpDate(formData.nextFollowUpDate);
         }
@@ -192,7 +192,7 @@ export default function FollowUpScripts({
         body: JSON.stringify(formData),
       });
       if (res.ok) {
-        // 如果设置了下次跟进日期，同步到跟进记录
+        // 如果设置了下次开发日期，同步到开发记录
         if (formData.nextFollowUpDate) {
           await syncNextFollowUpDate(formData.nextFollowUpDate);
         }
@@ -314,7 +314,7 @@ export default function FollowUpScripts({
   return (
     <Card>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold text-gray-900">跟进话术</h2>
+        <h2 className="text-xl font-semibold text-gray-900">开发话术</h2>
         {!isArchived && (
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={handleExport} loading={exporting} title="导出模板">
@@ -346,7 +346,7 @@ export default function FollowUpScripts({
               onChange={(e) => { setImportText(e.target.value); setImportFile(null); }}
               rows={8}
               className="w-full px-3 py-2 border border-blue-300 rounded-lg text-xs font-mono focus:border-blue-500"
-              placeholder={`=== 新增跟进 ===
+              placeholder={`=== 新增开发 ===
 followUpMatters: "开发,报价"
 contactMethod: "whatsapp"
 nextAction: "发送报价单"
@@ -378,7 +378,7 @@ content: |
               {importResult.results?.filter((r: any) => r.status === 'created').length > 0 && (
                 <div className="mt-1 space-y-0.5">
                   {importResult.results.filter((r: any) => r.status === 'created').map((r: any, i: number) => (
-                    <div key={i}>✅ {r.type === 'script' ? `话术: ${r.title}` : '跟进记录'}</div>
+                    <div key={i}>✅ {r.type === 'script' ? `话术: ${r.title}` : '开发记录'}</div>
                   ))}
                 </div>
               )}
@@ -417,7 +417,7 @@ content: |
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                  placeholder="如: 初次问候、报价跟进..."
+                  placeholder="如: 初次问候、报价开发..."
                 />
               </div>
             </div>
@@ -436,14 +436,14 @@ content: |
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">下次跟进日期</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">下次开发日期</label>
               <input
                 type="date"
                 value={formData.nextFollowUpDate}
                 onChange={(e) => setFormData({ ...formData, nextFollowUpDate: e.target.value })}
                 className="w-full md:w-64 px-3 py-2 border border-gray-300 rounded-lg text-sm"
               />
-              <p className="text-xs text-gray-500 mt-1">发送时将同步更新跟进记录的下次跟进日期</p>
+              <p className="text-xs text-gray-500 mt-1">发送时将同步更新开发记录的下次开发日期</p>
             </div>
             <div className="flex gap-2">
               <Button onClick={editingId ? () => handleUpdate(editingId) : handleAdd}>
@@ -459,7 +459,7 @@ content: |
       {loading ? (
         <div className="text-center py-4 text-gray-500">加载中...</div>
       ) : scripts.length === 0 ? (
-        <div className="text-center py-6 text-gray-500">暂无跟进话术，点击"新话术"添加</div>
+        <div className="text-center py-6 text-gray-500">暂无开发话术，点击"新话术"添加</div>
       ) : (
         <div className="space-y-3">
           {scripts.map((script) => (
@@ -502,7 +502,7 @@ content: |
                 )}
                 {script.nextFollowUpDate && (
                   <span className="flex items-center gap-1">
-                    📅 下次跟进: {new Date(script.nextFollowUpDate).toLocaleDateString('zh-CN')}
+                    📅 下次开发: {new Date(script.nextFollowUpDate).toLocaleDateString('zh-CN')}
                   </span>
                 )}
                 <span className="text-gray-400">

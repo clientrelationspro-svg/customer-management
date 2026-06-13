@@ -177,7 +177,7 @@ function DashboardContent() {
               {[
                 { icon: Plus, label: '新增客户', href: '/customers/new', color: 'text-blue-600' },
                 { icon: Users, label: '客户列表', href: '/customers', color: 'text-indigo-600' },
-                { icon: Calendar, label: '客户跟进', href: '/follow-ups', color: 'text-green-600' },
+                { icon: Calendar, label: '客户开发', href: '/follow-ups', color: 'text-green-600' },
                 { icon: Eye, label: '系统设置', href: '/settings', color: 'text-gray-600' },
               ].map(item => (
                 <button key={item.href} onClick={() => router.push(item.href)}

@@ -45,8 +45,8 @@ function parseContent(text: string): { followUps: any[]; scripts: any[] } {
   for (const raw of lines) {
     const line = raw.trim();
 
-    if (/新增跟进|===.*跟进/.test(line)) { flushFU(); section = 'followup'; continue; }
-    if (/新增话术|===.*话术/.test(line)) { flushScript(); section = 'scripts'; continue; }
+    if (/新增跟进|新增开发|===.*跟进|===.*开发/.test(line)) { flushFU(); section = 'followup'; continue; }
+    if (/新增话术|新增开发话术|===.*话术/.test(line)) { flushScript(); section = 'scripts'; continue; }
 
     if (inContent) {
       const nextType = line.match(/^type\s*:\s*"(whatsapp|email|phone)"/);
@@ -54,7 +54,7 @@ function parseContent(text: string): { followUps: any[]; scripts: any[] } {
         if (currentScript) currentScript.content = contentBuf.join('\n').trimEnd();
         inContent = false; contentBuf = [];
         if (nextType) { flushScript(); currentScript = { type: nextType[1] }; section = 'scripts'; continue; }
-        if (line.includes('跟进')) { flushScript(); flushFU(); section = 'followup'; continue; }
+        if (line.includes('跟进') || line.includes('开发')) { flushScript(); flushFU(); section = 'followup'; continue; }
         if (line.includes('话术')) { flushScript(); section = 'scripts'; continue; }
       } else {
         contentBuf.push(raw);

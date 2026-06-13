@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       }
 
       // AI 提示词头部
-      prompt += `你是一名专业的外贸业务员。请为以下客户生成跟进记录和沟通话术。\n\n`;
+      prompt += `你是一名专业的外贸业务员。请为以下客户生成开发记录和沟通话术。\n\n`;
 
       // 客户信息
       prompt += `## 客户信息\n`;
@@ -61,20 +61,20 @@ export async function GET(request: NextRequest) {
 
       // 生成要求
       prompt += `\n## 请生成以下内容\n`;
-      prompt += `1. 一条跟进记录，分析客户当前阶段并制定跟进策略\n`;
+      prompt += `1. 一条开发记录，分析客户当前阶段并制定开发策略\n`;
       prompt += `2. 2-3条沟通话术（WhatsApp/邮件/电话），内容自然专业\n\n`;
 
       // 格式说明
       prompt += `## 输出格式（严格遵守）\n`;
       prompt += `\`\`\`\n`;
-      prompt += `=== 新增跟进 ===\n`;
+      prompt += `=== 新增开发 ===\n`;
       prompt += `followUpMatters: "开发,报价"       # 多选用逗号分隔: 开发,报价,样品,谈判,成交,其他\n`;
       prompt += `contactMethod: "whatsapp"          # phone,email,whatsapp,wechat,other\n`;
       prompt += `nextAction: "发送报价单跟进邮件"    # 下一步动作\n`;
       prompt += `priority: "high"                   # high,medium,low\n`;
       prompt += `status: "in_progress"              # in_progress,completed,archived\n`;
       prompt += `lastFollowUpDate: "${new Date().toISOString().split('T')[0]}"\n`;
-      prompt += `nextFollowUpDate: ""               # 下次跟进日期 YYYY-MM-DD\n`;
+      prompt += `nextFollowUpDate: ""               # 下次开发日期 YYYY-MM-DD\n`;
       prompt += `remarks: "客户对价格比较敏感"       # 备注\n\n`;
 
       prompt += `=== 新增话术 ===\n`;
@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
       prompt += `\`\`\`\n`;
     } else {
       // 通用模板
-      prompt += `你是一名专业的外贸业务员。请为以下客户生成跟进记录和沟通话术。\n\n`;
+      prompt += `你是一名专业的外贸业务员。请为以下客户生成开发记录和沟通话术。\n\n`;
       prompt += `## 客户信息\n`;
       prompt += `- 公司名称: [请填写客户公司名称]\n`;
       prompt += `- 行业: [请填写行业]\n`;
@@ -102,12 +102,12 @@ export async function GET(request: NextRequest) {
       prompt += `- WhatsApp: [请填写WhatsApp]\n\n`;
 
       prompt += `## 请生成以下内容\n`;
-      prompt += `1. 一条跟进记录\n`;
+      prompt += `1. 一条开发记录\n`;
       prompt += `2. 2-3条沟通话术\n\n`;
 
       prompt += `## 输出格式\n`;
       prompt += `\`\`\`\n`;
-      prompt += `=== 新增跟进 ===\n`;
+      prompt += `=== 新增开发 ===\n`;
       prompt += `phone: ""\nwhatsapp: ""\nemail: ""\n`;
       prompt += `followUpMatters: ""  # 开发,报价,样品,谈判,成交,其他\n`;
       prompt += `contactMethod: ""   # phone,email,whatsapp,wechat,other\n`;
@@ -124,7 +124,7 @@ export async function GET(request: NextRequest) {
 
     // 原始格式说明（供导入用）
     prompt += `\n---\n`;
-    prompt += `💡 将以上 \`=== 新增跟进 ===\` 和 \`=== 新增话术 ===\` 之间的内容复制后，可在系统导入页面粘贴导入。\n`;
+    prompt += `💡 将以上 \`=== 新增开发 ===\` 和 \`=== 新增话术 ===\` 之间的内容复制后，可在系统导入页面粘贴导入。\n`;
 
     const fileName = customerId ? `follow-up-prompt-${customerId}.txt` : `follow-up-prompt.txt`;
 

@@ -374,7 +374,7 @@ function SettingsContent() {
                 <option value="technical">技术专业</option>
               </select>
               <textarea value={skillForm.workflow} onChange={e => setSkillForm(p => ({ ...p, workflow: e.target.value }))}
-                rows={3} placeholder="工作流程 * — 描述你日常工作的步骤和节奏，如：每天早上检查WhatsApp消息→筛选潜在客户→发送个性化问候→跟进48小时内未回复的客户"
+                rows={3} placeholder="工作流程 * — 描述你日常工作的步骤和节奏，如：每天早上检查WhatsApp消息→筛选潜在客户→发送个性化问候→开发48小时内未回复的客户"
                 className="px-3 py-2 border border-gray-300 rounded-lg text-sm sm:col-span-2" />
               <textarea value={skillForm.goals} onChange={e => setSkillForm(p => ({ ...p, goals: e.target.value }))}
                 rows={2} placeholder="工作目标 * — 如：每月开发20个新客户、回复率达到15%、转化率5%"

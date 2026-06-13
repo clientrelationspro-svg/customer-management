@@ -211,7 +211,7 @@ function EditFollowUpPageContent() {
     
     if (!isArchived) {
       if (formData.followUpMatters.length === 0) {
-        alert('请选择跟进事宜');
+        alert('请选择开发事宜');
         return;
       }
       
@@ -221,7 +221,7 @@ function EditFollowUpPageContent() {
       }
       
       if (!formData.lastFollowUpDate) {
-        alert('请填写上次跟进日期');
+        alert('请填写上次开发日期');
         return;
       }
     }
@@ -241,7 +241,7 @@ function EditFollowUpPageContent() {
       });
       
       if (res.ok) {
-        alert('跟进记录更新成功');
+        alert('开发记录更新成功');
         router.push('/follow-ups');
       } else {
         const error = await res.json();
@@ -249,7 +249,7 @@ function EditFollowUpPageContent() {
       }
     } catch (error) {
       console.error('Error updating follow-up:', error);
-      alert('更新跟进记录失败');
+      alert('更新开发记录失败');
     } finally {
       setSaving(false);
     }
@@ -262,7 +262,7 @@ function EditFollowUpPageContent() {
       });
       
       if (res.ok) {
-        alert('跟进记录删除成功');
+        alert('开发记录删除成功');
         router.push('/follow-ups');
       } else {
         const error = await res.json();
@@ -270,7 +270,7 @@ function EditFollowUpPageContent() {
       }
     } catch (error) {
       console.error('Error deleting follow-up:', error);
-      alert('删除跟进记录失败');
+      alert('删除开发记录失败');
     }
   };
   
@@ -375,8 +375,8 @@ ${userSkills.map(s => `### ${s.name}
 - 目标：${s.goals}${s.tips ? `\n- 技巧：${s.tips}` : ''}`).join('\n\n')}
 ` : ''}
 
-## 🎯 当前跟进
-- 跟进事项：${formData.followUpMatters.join('、')}
+## 🎯 当前开发
+- 开发事项：${formData.followUpMatters.join('、')}
 ${formData.nextAction ? `- 下一步动作：${formData.nextAction}` : ''}${formData.remarks ? `\n- 备注：${formData.remarks}` : ''}${needsSection}
 
 ## ⚙️ 严格生成参数
@@ -414,7 +414,7 @@ Please find the quotation attached.
 
 === 新增话术 ===
 type: "phone"
-title: "跟进确认"
+title: "开发确认"
 content: 1. 确认客户是否收到报价邮件
 2. 了解客户对价格的反馈
 
@@ -464,9 +464,9 @@ type可选值：whatsapp, email, phone, wechat
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="text-2xl font-bold">{isArchived ? '预览跟进（已归档）' : '编辑跟进'}</h1>
+        <h1 className="text-2xl font-bold">{isArchived ? '预览开发（已归档）' : '编辑开发'}</h1>
         {isArchived && (
-          <span className="px-3 py-1 text-xs font-medium bg-gray-200 text-gray-600 rounded-full">仅可修改跟进状态</span>
+          <span className="px-3 py-1 text-xs font-medium bg-gray-200 text-gray-600 rounded-full">仅可修改开发状态</span>
         )}
       </div>
       
@@ -565,12 +565,12 @@ type可选值：whatsapp, email, phone, wechat
             </Card>
             
             <Card>
-              <h2 className="text-xl font-semibold mb-4">跟进信息</h2>
+              <h2 className="text-xl font-semibold mb-4">开发信息</h2>
               
-              {/* 跟进事宜 */}
+              {/* 开发事宜 */}
               <div className="mb-4">
                 <label className="block text-sm font-medium mb-1">
-                  跟进事宜 <span className="text-red-500">*</span>
+                  开发事宜 <span className="text-red-500">*</span>
                 </label>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {['开发', '报价', '样品', '谈判', '成交', '其他'].map((matter) => (
@@ -610,9 +610,9 @@ type可选值：whatsapp, email, phone, wechat
                 </select>
               </div>
               
-              {/* 上次跟进日期 */}
+              {/* 上次开发日期 */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">上次跟进日期</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">上次开发日期</label>
                 <input
                   type="date"
                   name="lastFollowUpDate"
@@ -624,9 +624,9 @@ type可选值：whatsapp, email, phone, wechat
                 <p className="text-xs text-gray-400 mt-1">发送话术时自动更新</p>
               </div>
 
-              {/* 下次跟进日期 */}
+              {/* 下次开发日期 */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">下次跟进日期</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">下次开发日期</label>
                 <input
                   type="date"
                   name="nextFollowUpDate"
@@ -635,7 +635,7 @@ type可选值：whatsapp, email, phone, wechat
                   disabled={isArchived}
                   className="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
                 />
-                <p className="text-xs text-gray-400 mt-1">避免逾期跟进</p>
+                <p className="text-xs text-gray-400 mt-1">避免逾期开发</p>
               </div>
 
               {/* 下一步动作 */}
@@ -669,9 +669,9 @@ type可选值：whatsapp, email, phone, wechat
                 />
               </div>
 
-              {/* 跟进优先级 */}
+              {/* 开发优先级 */}
               <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">跟进优先级</label>
+                <label className="block text-sm font-medium mb-1">开发优先级</label>
                 <select
                   name="priority"
                   value={formData.priority}
@@ -685,9 +685,9 @@ type可选值：whatsapp, email, phone, wechat
                 </select>
               </div>
               
-              {/* 跟进状态 — 始终可编辑 */}
+              {/* 开发状态 — 始终可编辑 */}
               <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">跟进状态</label>
+                <label className="block text-sm font-medium mb-1">开发状态</label>
                 <select
                   name="status"
                   value={formData.status}
@@ -722,7 +722,7 @@ type可选值：whatsapp, email, phone, wechat
                     className="w-full"
                   >
                     <Trash2 className="w-5 h-5 mr-2" />
-                    删除跟进
+                    删除开发
                   </Button>
                 )}
                 <Button
@@ -741,7 +741,7 @@ type可选值：whatsapp, email, phone, wechat
               <div className="space-y-2 text-sm text-gray-600">
                 <p>• 带 <span className="text-red-500">*</span> 的为必填项</p>
                 <p>• 选择联系人后可自动填充联系方式</p>
-                <p>• 设置下次跟进日期可避免逾期</p>
+                <p>• 设置下次开发日期可避免逾期</p>
               </div>
             </Card>
           </div>
@@ -1036,8 +1036,8 @@ type可选值：whatsapp, email, phone, wechat
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={handleDelete}
-        title="删除跟进记录"
-        message="确定要删除此跟进记录吗？此操作不可撤销。"
+        title="删除开发记录"
+        message="确定要删除此开发记录吗？此操作不可撤销。"
         danger
       />
     </div>

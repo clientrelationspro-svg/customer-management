@@ -174,7 +174,7 @@ function FollowUpsPageContent() {
   return (
     <div>
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">客户跟进</h1>
+        <h1 className="text-3xl font-bold text-gray-900">客户开发</h1>
         <div className="flex gap-3">
           <Button variant="secondary" onClick={() => router.push('/follow-ups/import-export')}>
             <Download className="w-5 h-5 mr-2" />
@@ -182,7 +182,7 @@ function FollowUpsPageContent() {
           </Button>
           <Button onClick={() => router.push('/follow-ups/new')}>
             <Plus className="w-5 h-5 mr-2" />
-            新建跟进
+            新建开发
           </Button>
         </div>
       </div>
@@ -234,7 +234,7 @@ function FollowUpsPageContent() {
         {loading ? (
           <div className="text-center py-8">加载中...</div>
         ) : filteredFollowUps.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">暂无跟进记录</div>
+          <div className="text-center py-8 text-gray-500">暂无开发记录</div>
         ) : (
           <div className="space-y-3 md:space-y-4">
             {filteredFollowUps.map((followUp) => {
@@ -514,8 +514,8 @@ function FollowUpsPageContent() {
           setSelectedFollowUp(null);
         }}
         onConfirm={handleDelete}
-        title="删除跟进记录"
-        message={`确定要删除这条跟进记录吗？此操作不可撤销。`}
+        title="删除开发记录"
+        message={`确定要删除这条开发记录吗？此操作不可撤销。`}
         danger
       />
     </div>
