@@ -11,7 +11,7 @@ export async function GET(
   try {
     const contacts = await prisma.contact.findMany({
       where: { customerId: params.id },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { updatedAt: 'desc' },
     });
 
     return NextResponse.json({ success: true, data: contacts });

@@ -81,16 +81,24 @@ export default function CustomerContactsPage() {
     setContacts(prev => [...prev, newContact]);
   };
 
-  // 设置关键联系人
+  // 设置关键联系人 — 自动同步联系方式到客户字段
   const setKeyContact = async (contactId: string) => {
     const newKeyId = contactId === keyContactId ? '' : contactId;
+    const contact = contacts.find(c => c.id === contactId);
     try {
+      const body: any = { keyContactId: newKeyId || null };
+      if (newKeyId && contact) {
+        if (contact.phone) body.phone = contact.phone;
+        if (contact.email) body.email = contact.email;
+        if (contact.whatsapp) body.whatsapp = contact.whatsapp;
+      }
       await fetch(`/api/customers/${customerId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ keyContactId: newKeyId || null }),
+        body: JSON.stringify(body),
       });
       setKeyContactId(newKeyId);
+      fetchData();
     } catch (error) {
       console.error('Error setting key contact:', error);
     }

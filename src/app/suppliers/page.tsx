@@ -86,9 +86,9 @@ export default function SuppliersPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">供应商管理</h1>
-        <Button onClick={() => router.push('/suppliers/new')}>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 md:mb-8">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">供应商管理</h1>
+        <Button onClick={() => router.push('/suppliers/new')} className="w-full sm:w-auto">
           <Plus className="w-5 h-5 mr-2" />
           新增供应商
         </Button>
@@ -110,7 +110,7 @@ export default function SuppliersPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent whitespace-nowrap"
           >
             <option value="">全部状态</option>
             <option value="active">活跃</option>
@@ -126,96 +126,165 @@ export default function SuppliersPage() {
         ) : suppliers.length === 0 ? (
           <div className="text-center py-8 text-gray-500">暂无供应商数据</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">供应商信息</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">联系方式</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">联系人</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">产品数</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">状态</th>
-                  <th className="text-right py-3 px-4 font-medium text-gray-700">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {suppliers.map((supplier) => {
-                  const statusBadge = getStatusBadge(supplier.status);
-                  return (
-                    <tr key={supplier.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                            <Truck className="w-5 h-5 text-purple-600" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-gray-900">{supplier.name}</p>
-                            {supplier.company && (
-                              <p className="text-sm text-gray-600">{supplier.company}</p>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="space-y-1">
-                          {supplier.email && (
-                            <p className="text-sm text-gray-600">{supplier.email}</p>
-                          )}
-                          {supplier.phone && (
-                            <p className="text-sm text-gray-600">{supplier.phone}</p>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 text-sm text-gray-600">
-                        {supplier.contactPerson || '-'}
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-1">
-                          <Package className="w-4 h-4 text-gray-400" />
-                          <span className="font-medium text-gray-900">
-                            {supplier._count.products}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${statusBadge.color}`}>
+          <>
+            {/* 移动端卡片视图 */}
+            <div className="block md:hidden space-y-3">
+              {suppliers.map((supplier) => {
+                const statusBadge = getStatusBadge(supplier.status);
+                return (
+                  <div key={supplier.id} className="p-4 bg-gray-50 rounded-lg border border-gray-100">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-gray-900 truncate">{supplier.name}</h3>
+                        {supplier.company && (
+                          <p className="text-xs text-gray-600 mt-0.5 truncate">{supplier.company}</p>
+                        )}
+                      </div>
+                      <div className="flex gap-1 ml-2 flex-shrink-0">
+                        <button
+                          onClick={() => router.push(`/suppliers/${supplier.id}`)}
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                          title="查看"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => router.push(`/suppliers/${supplier.id}/edit`)}
+                          className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors"
+                          title="编辑"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedSupplier(supplier);
+                            setIsDeleteModalOpen(true);
+                          }}
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                          title="删除"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-1 text-xs text-gray-600">
+                      {supplier.contactPerson && (
+                        <p>联系人: {supplier.contactPerson}</p>
+                      )}
+                      {supplier.email && (
+                        <p className="truncate">📧 {supplier.email}</p>
+                      )}
+                      {supplier.phone && (
+                        <p>📞 {supplier.phone}</p>
+                      )}
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <span className="inline-flex items-center gap-1">
+                          <Package className="w-3 h-3 text-gray-400" />
+                          {supplier._count.products} 个产品
+                        </span>
+                        <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${statusBadge.color}`}>
                           {statusBadge.label}
                         </span>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex justify-end gap-2">
-                          <button
-                            onClick={() => router.push(`/suppliers/${supplier.id}`)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="查看"
-                          >
-                            <Eye className="w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={() => router.push(`/suppliers/${supplier.id}/edit`)}
-                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                            title="编辑"
-                          >
-                            <Edit className="w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setSelectedSupplier(supplier);
-                              setIsDeleteModalOpen(true);
-                            }}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="删除"
-                          >
-                            <Trash2 className="w-5 h-5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* 桌面端表格视图 */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">供应商信息</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">联系方式</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">联系人</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">产品数</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">状态</th>
+                    <th className="text-right py-3 px-4 font-medium text-gray-700">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {suppliers.map((supplier) => {
+                    const statusBadge = getStatusBadge(supplier.status);
+                    return (
+                      <tr key={supplier.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-4 px-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                              <Truck className="w-5 h-5 text-purple-600" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">{supplier.name}</p>
+                              {supplier.company && (
+                                <p className="text-sm text-gray-600">{supplier.company}</p>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="space-y-1">
+                            {supplier.email && (
+                              <p className="text-sm text-gray-600">{supplier.email}</p>
+                            )}
+                            {supplier.phone && (
+                              <p className="text-sm text-gray-600">{supplier.phone}</p>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 text-sm text-gray-600">
+                          {supplier.contactPerson || '-'}
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="flex items-center gap-1">
+                            <Package className="w-4 h-4 text-gray-400" />
+                            <span className="font-medium text-gray-900">
+                              {supplier._count.products}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${statusBadge.color}`}>
+                            {statusBadge.label}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => router.push(`/suppliers/${supplier.id}`)}
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="查看"
+                            >
+                              <Eye className="w-5 h-5" />
+                            </button>
+                            <button
+                              onClick={() => router.push(`/suppliers/${supplier.id}/edit`)}
+                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                              title="编辑"
+                            >
+                              <Edit className="w-5 h-5" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedSupplier(supplier);
+                                setIsDeleteModalOpen(true);
+                              }}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="删除"
+                            >
+                              <Trash2 className="w-5 h-5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
 
         {/* 分页 */}

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Save, Plus, Trash2, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { logActivity } from '@/lib/activity';
 
 interface Contact {
   id: string;
@@ -35,6 +36,7 @@ export default function NewCustomerPage() {
     email: '',
     socialMedia: '',
     contactAddress: '',
+    level: 'C',
     status: 'active',
   });
   
@@ -195,6 +197,7 @@ export default function NewCustomerPage() {
       const result = await response.json();
       
       if (response.ok && result.success) {
+        logActivity('customer_added', result.data?.id);
         alert('客户创建成功');
         router.push('/customers');
       } else {
@@ -210,7 +213,7 @@ export default function NewCustomerPage() {
   
   return (
     <div>
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex flex-col md:flex-row items-start md:items-center gap-4 mb-6">
         <button
           onClick={() => router.back()}
           className="p-2 hover:bg-gray-100 rounded-lg"
@@ -222,24 +225,24 @@ export default function NewCustomerPage() {
       
       <form onSubmit={handleSubmit}>
         {/* 标签页导航 */}
-        <div className="flex border-b mb-6">
+        <div className="flex border-b mb-6 overflow-x-auto">
           <button
             type="button"
-            className={`px-4 py-2 font-medium ${activeTab === 'basic' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'}`}
+            className={`px-4 py-2 font-medium whitespace-nowrap ${activeTab === 'basic' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'}`}
             onClick={() => setActiveTab('basic')}
           >
             基本信息
           </button>
           <button
             type="button"
-            className={`px-4 py-2 font-medium ${activeTab === 'contact' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'}`}
+            className={`px-4 py-2 font-medium whitespace-nowrap ${activeTab === 'contact' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'}`}
             onClick={() => setActiveTab('contact')}
           >
             联系方式
           </button>
           <button
             type="button"
-            className={`px-4 py-2 font-medium ${activeTab === 'contacts' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'}`}
+            className={`px-4 py-2 font-medium whitespace-nowrap ${activeTab === 'contacts' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'}`}
             onClick={() => setActiveTab('contacts')}
           >
             联系人管理
@@ -248,7 +251,7 @@ export default function NewCustomerPage() {
         
         {/* 基本信息标签页 */}
         {activeTab === 'basic' && (
-          <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <div className="bg-white rounded-lg shadow p-4 md:p-6 mb-6">
             <h2 className="text-lg font-semibold mb-4">基本信息</h2>
             
             {/* 公司名称带查重 */}
@@ -291,6 +294,23 @@ export default function NewCustomerPage() {
               )}
             </div>
             
+            {/* 客户等级 */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">客户等级</label>
+              <select
+                name="level"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                value={formData.level}
+                onChange={handleInputChange}
+              >
+                <option value="A">A 级 — 核心客户</option>
+                <option value="B">B 级 — 重要客户</option>
+                <option value="C">C 级 — 普通客户</option>
+                <option value="D">D 级 — 潜在客户</option>
+                <option value="E">E 级 — 观察客户</option>
+              </select>
+            </div>
+            
             {/* 企业规模 */}
             <div className="mb-4">
               <label className="block text-sm font-medium mb-1">企业规模</label>
@@ -315,7 +335,7 @@ export default function NewCustomerPage() {
               <div className="flex gap-2">
                 <select
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
-                  value={formData.country && ['中国', '美国', '日本', '德国', '法国', '英国', '韩国', '印度', '巴西', '俄罗斯', '其他'].includes(formData.country) ? formData.country : '其他'}
+                  value={formData.country && ['中国', '美国', '日本', '德国', '法国', '英国', '韩国', '印度', '巴西', '俄罗斯'].includes(formData.country) ? formData.country : '其他'}
                   onChange={(e) => {
                     if (e.target.value === '其他') {
                       setFormData(prev => ({ ...prev, country: '' }));
@@ -432,7 +452,7 @@ export default function NewCustomerPage() {
         
         {/* 联系方式标签页 */}
         {activeTab === 'contact' && (
-          <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <div className="bg-white rounded-lg shadow p-4 md:p-6 mb-6">
             <h2 className="text-lg font-semibold mb-4">联系方式</h2>
             
             {/* 电话 */}
@@ -517,13 +537,14 @@ export default function NewCustomerPage() {
         
         {/* 联系人管理标签页 */}
         {activeTab === 'contacts' && (
-          <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <div className="flex justify-between items-center mb-4">
+          <div className="bg-white rounded-lg shadow p-4 md:p-6 mb-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-2">
               <h2 className="text-lg font-semibold">联系人管理</h2>
               <Button
                 type="button"
                 onClick={addContact}
                 icon={<Plus size={16} />}
+                className="w-full md:w-auto"
               >
                 添加联系人
               </Button>
@@ -624,11 +645,12 @@ export default function NewCustomerPage() {
         )}
         
         {/* 提交按钮 */}
-        <div className="flex gap-2">
+        <div className="flex flex-col md:flex-row gap-2">
           <Button 
             type="submit" 
             icon={isSubmitting ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
-            disabled={isSubmitting || companyNameExists}
+            disabled={isSubmitting}
+            className="w-full md:w-auto"
           >
             {isSubmitting ? '保存中...' : '保存客户'}
           </Button>
@@ -636,6 +658,7 @@ export default function NewCustomerPage() {
             type="button"
             variant="secondary"
             onClick={() => router.push('/customers')}
+            className="w-full md:w-auto"
           >
             取消
           </Button>

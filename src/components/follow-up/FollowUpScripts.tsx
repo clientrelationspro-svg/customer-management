@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Plus, Trash2, Edit3, CheckCircle, Send, Phone, Mail, MessageCircle, X, Clock, Download, Upload, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { logActivity } from '@/lib/activity';
 
 interface Script {
   id: string;
@@ -23,6 +24,7 @@ interface FollowUpScriptsProps {
   customerEmail?: string;
   customerWhatsapp?: string;
   currentNextFollowUpDate?: string;
+  isArchived?: boolean;
   onDateUpdated?: (lastFollowUpDate: string, nextFollowUpDate: string) => void;
 }
 
@@ -33,6 +35,7 @@ export default function FollowUpScripts({
   customerEmail,
   customerWhatsapp,
   currentNextFollowUpDate,
+  isArchived = false,
   onDateUpdated,
 }: FollowUpScriptsProps) {
   const [scripts, setScripts] = useState<Script[]>([]);
@@ -40,6 +43,7 @@ export default function FollowUpScripts({
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
+  const [sentIds, setSentIds] = useState<Set<string>>(new Set());
   const [formData, setFormData] = useState({ type: 'whatsapp' as Script['type'], title: '', content: '', nextFollowUpDate: '' });
 
   // 导入导出状态
@@ -224,13 +228,16 @@ export default function FollowUpScripts({
         }),
       });
       if (res.ok) {
+        // 记录活动
+        const actionMap: Record<string, string> = { whatsapp: 'whatsapp_sent', email: 'email_sent', phone: 'phone_called' };
+        logActivity(actionMap[script.type] || 'whatsapp_sent', customerId);
+        
         const result = await res.json();
         const effectiveNextDate = script.nextFollowUpDate || currentNextFollowUpDate || '';
-        // 通知父组件更新日期
         if (onDateUpdated) {
           onDateUpdated(result.sentAt, effectiveNextDate);
         }
-        // 先打开链接再刷新
+        setSentIds(prev => new Set(prev).add(script.id));
         openActionLink(script);
         fetchScripts();
       }
@@ -260,28 +267,7 @@ export default function FollowUpScripts({
     }
   };
 
-  // 完成并删除
-  const handleCompleteAndDelete = async (script: Script) => {
-    try {
-      const res = await fetch(`/api/follow-up-scripts/${script.id}/send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          followUpId,
-          nextFollowUpDate: script.nextFollowUpDate || currentNextFollowUpDate || null,
-        }),
-      });
-      const result = await res.json();
-      const effectiveNextDate = script.nextFollowUpDate || currentNextFollowUpDate || '';
-      if (onDateUpdated) {
-        onDateUpdated(result.sentAt, effectiveNextDate);
-      }
-      await fetch(`/api/follow-up-scripts/${script.id}`, { method: 'DELETE' });
-      fetchScripts();
-    } catch (error) {
-      console.error('Error completing script:', error);
-    }
-  };
+
 
   const startEdit = (script: Script) => {
     setEditingId(script.id);
@@ -329,6 +315,7 @@ export default function FollowUpScripts({
     <Card>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-semibold text-gray-900">跟进话术</h2>
+        {!isArchived && (
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={handleExport} loading={exporting} title="导出模板">
             <Download className="w-4 h-4 mr-1" /> 导出
@@ -340,6 +327,7 @@ export default function FollowUpScripts({
             <Plus className="w-4 h-4 mr-1" /> 新话术
           </Button>
         </div>
+        )}
       </div>
 
       {/* 导入区域 */}
@@ -487,6 +475,7 @@ content: |
                   </span>
                   <h4 className="font-medium text-gray-900">{script.title}</h4>
                 </div>
+                {!isArchived && (
                 <div className="flex items-center gap-1">
                   <button onClick={() => startEdit(script)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="编辑">
                     <Edit3 className="w-4 h-4" />
@@ -495,6 +484,7 @@ content: |
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
+                )}
               </div>
 
               {/* 话术内容 */}
@@ -521,7 +511,14 @@ content: |
               </div>
 
               {/* 操作按钮 */}
+              {!isArchived && (
               <div className="flex items-center gap-2 pl-6">
+                {sentIds.has(script.id) ? (
+                  <span className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-500 bg-gray-100 rounded-lg">
+                    <CheckCircle className="w-4 h-4" />
+                    已发送
+                  </span>
+                ) : (
                 <button
                   onClick={() => handleSend(script)}
                   disabled={sendingId === script.id}
@@ -530,15 +527,9 @@ content: |
                   <Send className="w-4 h-4" />
                   {sendingId === script.id ? '发送中...' : `发送${getTypeLabel(script.type)}`}
                 </button>
-                <button
-                  onClick={() => handleCompleteAndDelete(script)}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
-                  title="完成并删除"
-                >
-                  <CheckCircle className="w-4 h-4" />
-                  完成并删除
-                </button>
+                )}
               </div>
+              )}
             </div>
           ))}
         </div>

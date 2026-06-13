@@ -1,11 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { getTokenPayload } from '@/lib/auth';
 
 const prisma = new PrismaClient();
+
+// 确保数据库 schema 与 Prisma schema 同步
+async function ensureSchema() {
+  try {
+    await prisma.$executeRawUnsafe(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS level VARCHAR(1) DEFAULT 'C'`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS user_id TEXT`);
+  } catch (e) {
+    // 列已存在或其他非关键错误
+  }
+}
 
 // 获取客户列表
 export async function GET(request: NextRequest) {
   try {
+    await ensureSchema();
+    const payload = getTokenPayload();
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
     const status = searchParams.get('status');
@@ -15,6 +28,11 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     const where: any = {};
+    
+    // 用户数据隔离：非管理员只看自己的客户
+    if (payload && payload.role !== 'admin') {
+      where.userId = payload.userId;
+    }
     
     if (level) where.level = level;
     if (search) {
@@ -69,27 +87,14 @@ export async function GET(request: NextRequest) {
 // 创建客户
 export async function POST(request: NextRequest) {
   try {
+    await ensureSchema();
+    const payload = getTokenPayload();
+    
     const body = await request.json();
     const {
-      companyName,
-      enterpriseScale,
-      country,
-      establishDate,
-      address,
-      regCapital,
-      industry,
-      employeeCount,
-      notes,
-      phone,
-      fax,
-      website,
-      email,
-      socialMedia,
-      contactAddress,
-      keyContactId,
-      level,
-      status,
-      contacts,
+      companyName, enterpriseScale, country, establishDate, address,
+      regCapital, industry, employeeCount, notes, phone, fax, website, email,
+      socialMedia, contactAddress, keyContactId, level, status, contacts,
     } = body;
 
     // 验证必填字段
@@ -105,7 +110,7 @@ export async function POST(request: NextRequest) {
         companyName,
         enterpriseScale,
         country,
-        establishDate: establishDate ? new Date(establishDate) : null,
+        establishDate: establishDate ? (() => { const d = new Date(establishDate); return isNaN(d.getTime()) ? null : d; })() : null,
         address,
         regCapital,
         industry,
@@ -120,6 +125,7 @@ export async function POST(request: NextRequest) {
         keyContactId: keyContactId || null,
         level: level || 'C',
         status: status || 'active',
+        userId: payload?.userId || null,
         contacts: contacts && contacts.length > 0 ? {
           create: contacts.map((contact: any) => ({
             name: contact.name,

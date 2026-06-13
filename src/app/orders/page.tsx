@@ -93,9 +93,9 @@ export default function OrdersPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">订单管理</h1>
-        <Button onClick={() => router.push('/orders/new')}>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 md:mb-8">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">订单管理</h1>
+        <Button onClick={() => router.push('/orders/new')} className="w-full sm:w-auto">
           <Plus className="w-5 h-5 mr-2" />
           创建订单
         </Button>
@@ -117,7 +117,7 @@ export default function OrdersPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent whitespace-nowrap"
           >
             <option value="">全部状态</option>
             <option value="pending">待处理</option>
@@ -136,87 +136,151 @@ export default function OrdersPage() {
         ) : orders.length === 0 ? (
           <div className="text-center py-8 text-gray-500">暂无订单数据</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">订单号</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">客户</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">金额</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">付款状态</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">订单状态</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">日期</th>
-                  <th className="text-right py-3 px-4 font-medium text-gray-700">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.map((order) => {
-                  const statusBadge = getStatusBadge(order.status);
-                  const paymentStatus = getPaymentStatus(order);
-                  return (
-                    <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-4 px-4">
-                        <p className="font-medium text-blue-600">{order.orderNo}</p>
-                        <p className="text-sm text-gray-600">{order._count.items} 件商品</p>
-                      </td>
-                      <td className="py-4 px-4">
+          <>
+            {/* 移动端卡片视图 */}
+            <div className="block md:hidden space-y-3">
+              {orders.map((order) => {
+                const statusBadge = getStatusBadge(order.status);
+                const paymentStatus = getPaymentStatus(order);
+                return (
+                  <div key={order.id} className="p-4 bg-gray-50 rounded-lg border border-gray-100">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-blue-600 text-sm truncate">{order.orderNo}</p>
                         <button
                           onClick={() => router.push(`/customers/${order.customer.id}`)}
-                          className="font-medium text-gray-900 hover:text-blue-600"
+                          className="text-xs text-gray-900 hover:text-blue-600 mt-0.5 truncate block"
                         >
                           {order.customer.name}
                         </button>
-                      </td>
-                      <td className="py-4 px-4">
-                        <p className="font-medium text-gray-900">
-                          {formatCurrency(order.totalAmount)}
-                        </p>
-                        {order.paidAmount > 0 && (
-                          <p className="text-sm text-gray-600">
-                            已付: {formatCurrency(order.paidAmount)}
-                          </p>
-                        )}
-                      </td>
-                      <td className="py-4 px-4">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${paymentStatus.color}`}>
+                      </div>
+                      <div className="flex gap-1 ml-2 flex-shrink-0">
+                        <button
+                          onClick={() => router.push(`/orders/${order.id}`)}
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                          title="查看"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedOrder(order);
+                            setIsDeleteModalOpen(true);
+                          }}
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                          title="删除"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-1 text-xs text-gray-600">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-gray-900">{formatCurrency(order.totalAmount)}</span>
+                        <span>{order._count.items} 件商品</span>
+                      </div>
+                      {order.paidAmount > 0 && (
+                        <p className="text-gray-500">已付: {formatCurrency(order.paidAmount)}</p>
+                      )}
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <span className={`inline-flex px-1.5 py-0.5 text-xs font-semibold rounded-full ${paymentStatus.color}`}>
                           {paymentStatus.label}
                         </span>
-                      </td>
-                      <td className="py-4 px-4">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${statusBadge.color}`}>
+                        <span className={`inline-flex px-1.5 py-0.5 text-xs font-semibold rounded-full ${statusBadge.color}`}>
                           {statusBadge.label}
                         </span>
-                      </td>
-                      <td className="py-4 px-4 text-sm text-gray-600">
-                        {formatDate(order.orderDate)}
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex justify-end gap-2">
+                      </div>
+                      <p className="text-gray-500 mt-1">{formatDate(order.orderDate)}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* 桌面端表格视图 */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">订单号</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">客户</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">金额</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">付款状态</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">订单状态</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">日期</th>
+                    <th className="text-right py-3 px-4 font-medium text-gray-700">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orders.map((order) => {
+                    const statusBadge = getStatusBadge(order.status);
+                    const paymentStatus = getPaymentStatus(order);
+                    return (
+                      <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-4 px-4">
+                          <p className="font-medium text-blue-600">{order.orderNo}</p>
+                          <p className="text-sm text-gray-600">{order._count.items} 件商品</p>
+                        </td>
+                        <td className="py-4 px-4">
                           <button
-                            onClick={() => router.push(`/orders/${order.id}`)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="查看"
+                            onClick={() => router.push(`/customers/${order.customer.id}`)}
+                            className="font-medium text-gray-900 hover:text-blue-600"
                           >
-                            <Eye className="w-5 h-5" />
+                            {order.customer.name}
                           </button>
-                          <button
-                            onClick={() => {
-                              setSelectedOrder(order);
-                              setIsDeleteModalOpen(true);
-                            }}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="删除"
-                          >
-                            <Trash2 className="w-5 h-5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <p className="font-medium text-gray-900">
+                            {formatCurrency(order.totalAmount)}
+                          </p>
+                          {order.paidAmount > 0 && (
+                            <p className="text-sm text-gray-600">
+                              已付: {formatCurrency(order.paidAmount)}
+                            </p>
+                          )}
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${paymentStatus.color}`}>
+                            {paymentStatus.label}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${statusBadge.color}`}>
+                            {statusBadge.label}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 text-sm text-gray-600">
+                          {formatDate(order.orderDate)}
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => router.push(`/orders/${order.id}`)}
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="查看"
+                            >
+                              <Eye className="w-5 h-5" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedOrder(order);
+                                setIsDeleteModalOpen(true);
+                              }}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="删除"
+                            >
+                              <Trash2 className="w-5 h-5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
 
         {/* 分页 */}

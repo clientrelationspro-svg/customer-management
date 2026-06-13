@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { getTokenPayload } from '@/lib/auth';
 
 const prisma = new PrismaClient();
 
@@ -8,6 +9,7 @@ export const dynamic = 'force-dynamic';
 // 获取跟进列表
 export async function GET(request: NextRequest) {
   try {
+    const payload = getTokenPayload();
     const { searchParams } = new URL(request.url);
     const customerId = searchParams.get('customerId');
     const status = searchParams.get('status');
@@ -20,6 +22,11 @@ export async function GET(request: NextRequest) {
     if (customerId) where.customerId = customerId;
     if (status) where.status = status;
     if (priority) where.priority = priority;
+    
+    // 非管理员只看自己客户的跟进
+    if (payload && payload.role !== 'admin') {
+      where.customer = { userId: payload.userId };
+    }
 
     const [followUps, total] = await Promise.all([
       prisma.followUp.findMany({
@@ -36,12 +43,13 @@ export async function GET(request: NextRequest) {
     ]);
 
     return NextResponse.json({
+      success: true,
       data: followUps,
       pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
     });
   } catch (error) {
     console.error('Error in GET /api/follow-ups:', error);
-    return NextResponse.json({ error: '获取跟进列表失败' }, { status: 500 });
+    return NextResponse.json({ success: false, error: '获取跟进列表失败', data: [] }, { status: 500 });
   }
 }
 
@@ -105,11 +113,11 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(followUp, { status: 201 });
+    return NextResponse.json({ success: true, data: followUp }, { status: 201 });
   } catch (error: any) {
     console.error('Error in POST /api/follow-ups:', error);
     return NextResponse.json(
-      { error: '创建跟进记录失败，请确保已选择有效客户' }, 
+      { success: false, error: '创建跟进记录失败，请确保已选择有效客户' }, 
       { status: 500 }
     );
   }

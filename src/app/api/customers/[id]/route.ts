@@ -73,8 +73,8 @@ export async function PATCH(
         ...(companyName !== undefined && { companyName }),
         ...(enterpriseScale !== undefined && { enterpriseScale }),
         ...(country !== undefined && { country }),
-        ...(establishDate !== undefined && { 
-          establishDate: establishDate ? new Date(establishDate) : null 
+        ...(establishDate !== undefined && establishDate && {
+          establishDate: (() => { const d = new Date(establishDate); return isNaN(d.getTime()) ? null : d; })()
         }),
         ...(address !== undefined && { address }),
         ...(regCapital !== undefined && { regCapital }),
@@ -104,13 +104,21 @@ export async function PATCH(
     
     if (error.code === 'P2002') {
       return NextResponse.json(
-        { success: false, error: '邮箱已存在' },
+        { success: false, error: '邮箱已被其他客户使用，请更换邮箱' },
         { status: 400 }
       );
     }
+    if (error.code === 'P2025') {
+      return NextResponse.json(
+        { success: false, error: '客户不存在' },
+        { status: 404 }
+      );
+    }
     
+    // 返回具体错误信息
+    const message = error?.meta?.message || error?.message || '更新客户失败';
     return NextResponse.json(
-      { success: false, error: '更新客户失败' },
+      { success: false, error: `更新失败: ${message}` },
       { status: 500 }
     );
   }

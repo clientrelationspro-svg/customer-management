@@ -36,6 +36,9 @@ model Customer {
   keyContactId    String?  @map("key_contact_id") // 关键联系人ID
   keyContact      Contact? @relation("KeyContact", fields: [keyContactId], references: [id], onDelete: SetNull)
   
+  userId          String?  @map("user_id") // 归属用户
+  user            User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
   status          String   @default("active") @map("status")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
@@ -45,8 +48,27 @@ model Customer {
   contacts        Contact[] // 关联联系人
   followUps       FollowUp[] // 关联跟进记录
   scripts         FollowUpScript[] // 关联跟进话术
+  needs           CustomerNeed[] // 关联需求分析
   
+  @@index([userId])
   @@map("customers")
+}
+
+// 客户需求分析模型
+model CustomerNeed {
+  id            String   @id @default(cuid())
+  customerId    String   @map("customer_id")
+  category      String   @map("category") // product_requirement, cooperation_angle, hook
+  content       String   @map("content")
+  style         String?  @map("style") // professional, casual, aggressive, consultative, friendly
+  priority      Int      @default(0) @map("priority")
+  source        String   @default("manual") @map("source") // manual, ai_generated
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  
+  customer      Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  
+  @@map("customer_needs")
 }
 
 // 客户跟进模型
@@ -218,15 +240,57 @@ model File {
   @@map("files")
 }
 
-// 用户模型 (用于未来扩展)
+// 用户模型
 model User {
   id          String   @id @default(cuid())
   email       String   @unique @map("email")
   name        String?  @map("name")
   password    String   @map("password")
   role        String   @default("user") @map("role")
+  description String?  @map("description") // 业务描述：如"专注欧美市场的机械设备外贸业务员"
+  company     String?  @map("company") // 公司简介
+  contact     String?  @map("contact_info") // 联系方式
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
   
+  activities  ActivityLog[]
+  customers   Customer[]  // 归属客户
+  skills      UserSkill[] // 员工技能
+  
   @@map("users")
+}
+
+// 活动记录模型（仪表盘统计用）
+model ActivityLog {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  customerId  String?  @map("customer_id")
+  action      String   @map("action") // customer_added, email_sent, whatsapp_sent, phone_called
+  createdAt   DateTime @default(now()) @map("created_at")
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, createdAt])
+  @@map("activity_logs")
+}
+
+// 员工技能模型
+model UserSkill {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  name        String   @map("name") // 技能名称
+  category    String   @default("communication") @map("category") // communication, sales, support, technical
+  workflow    String   @map("workflow") // 工作流程
+  goals       String   @map("goals") // 工作目标
+  tips        String?  @map("tips") // 经验技巧
+  tools       String?  @map("tools") // 常用工具/平台
+  sortOrder   Int      @default(0) @map("sort_order")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@map("user_skills")
 }
