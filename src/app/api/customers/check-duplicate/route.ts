@@ -22,7 +22,6 @@ export async function GET(request: NextRequest) {
     const where: any = {
       companyName: {
         equals: companyName,
-        mode: 'insensitive', // 不区分大小写
       },
     };
     
