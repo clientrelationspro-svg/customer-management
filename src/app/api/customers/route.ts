@@ -4,20 +4,9 @@ import { getTokenPayload } from '@/lib/auth';
 
 const prisma = new PrismaClient();
 
-// 确保数据库 schema 与 Prisma schema 同步
-async function ensureSchema() {
-  try {
-    await prisma.$executeRawUnsafe(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS level VARCHAR(1) DEFAULT 'C'`);
-    await prisma.$executeRawUnsafe(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS user_id TEXT`);
-  } catch (e) {
-    // 列已存在或其他非关键错误
-  }
-}
-
 // 获取客户列表
 export async function GET(request: NextRequest) {
   try {
-    await ensureSchema();
     const payload = getTokenPayload();
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
@@ -87,7 +76,6 @@ export async function GET(request: NextRequest) {
 // 创建客户
 export async function POST(request: NextRequest) {
   try {
-    await ensureSchema();
     const payload = getTokenPayload();
     
     const body = await request.json();
