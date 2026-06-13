@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     // 如果没有选择客户但输入了新公司名称，自动创建客户
     if (!actualCustomerId && companyName?.trim()) {
       const existingCustomer = await prisma.customer.findFirst({
-        where: { companyName: { equals: companyName.trim(), mode: 'insensitive' } },
+        where: { companyName: { equals: companyName.trim() } },
       });
       if (existingCustomer) {
         actualCustomerId = existingCustomer.id;

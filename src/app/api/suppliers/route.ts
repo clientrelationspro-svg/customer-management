@@ -24,16 +24,16 @@ export async function GET(request: NextRequest) {
 
     if (search) {
       where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { country: { contains: search, mode: 'insensitive' } },
-        { mainProducts: { contains: search, mode: 'insensitive' } },
-        { notes: { contains: search, mode: 'insensitive' } },
+        { name: { contains: search } },
+        { country: { contains: search } },
+        { mainProducts: { contains: search } },
+        { notes: { contains: search } },
       ];
     }
     if (cooperationStatus) where.cooperationStatus = cooperationStatus;
     if (riskLevel) where.riskLevel = riskLevel;
     if (country) where.country = country;
-    if (product) where.mainProducts = { contains: product, mode: 'insensitive' };
+    if (product) where.mainProducts = { contains: product };
     if (starred === 'true') where.isStarred = true;
 
     const orderBy: any = {};
