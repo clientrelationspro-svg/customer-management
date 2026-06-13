@@ -135,22 +135,86 @@ model Contact {
 
 // 供应商模型
 model Supplier {
-  id            String   @id @default(cuid())
-  name          String   @map("name")
-  email         String?  @unique @map("email")
-  phone         String?  @map("phone")
-  company       String?  @map("company")
-  address       String?  @map("address")
-  contactPerson String?  @map("contact_person")
-  status        String   @default("active") @map("status")
-  notes         String?  @map("notes")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id                String   @id @default(cuid())
+  name              String   @map("name") // 公司名称
+  email             String?  @unique @map("email")
+  phone             String?  @map("phone")
+  website           String?  @map("website")
+  address           String?  @map("address")
+  country           String?  @map("country") // 国家
+  mainProducts      String?  @map("main_products") // 主要产品（逗号分隔）
+  cooperationStatus String   @default("potential") @map("cooperation_status") // potential, active, suspended, terminated
+  riskLevel         String?  @map("risk_level") // high, medium, low
+  riskTypes         String?  @map("risk_types") // 逗号分隔：制裁,诉讼,经营异常,合规,其他
+  riskDescription   String?  @map("risk_description")
+  foundedDate       DateTime? @map("founded_date")
+  orderAmount       Decimal? @map("order_amount")
+  isStarred         Boolean  @default(false) @map("is_starred")
+  notes             String?  @map("notes")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
   
-  products      Product[]
-  files         File[]   @relation("SupplierFiles")
+  products          Product[]
+  files             File[]   @relation("SupplierFiles")
+  contacts          SupplierContact[]
+  communications    SupplierCommunication[]
+  riskEvents        SupplierRiskEvent[]
   
   @@map("suppliers")
+}
+
+// 供应商联系人模型
+model SupplierContact {
+  id                    String   @id @default(cuid())
+  supplierId            String   @map("supplier_id")
+  name                  String   @map("name")
+  position              String?  @map("position")
+  phone                 String?  @map("phone")
+  whatsapp              String?  @map("whatsapp")
+  email                 String?  @map("email")
+  wechat                String?  @map("wechat")
+  decisionWeight        String?  @map("decision_weight") // 决策权重：关键/重要/一般
+  communicationPreference String? @map("communication_preference") // 沟通偏好：wechat, whatsapp, email, phone
+  timezone              String?  @map("timezone")
+  remarks               String?  @map("remarks")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+  
+  supplier              Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  communications        SupplierCommunication[]
+  
+  @@map("supplier_contacts")
+}
+
+// 供应商沟通记录模型
+model SupplierCommunication {
+  id          String   @id @default(cuid())
+  supplierId  String   @map("supplier_id")
+  contactId   String?  @map("contact_id")
+  method      String   @map("method") // phone, email, whatsapp, wechat, meeting, other
+  content     String   @map("content")
+  createdAt   DateTime @default(now()) @map("created_at")
+  
+  supplier    Supplier          @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  contact     SupplierContact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  
+  @@map("supplier_communications")
+}
+
+// 供应商风险事件模型
+model SupplierRiskEvent {
+  id          String    @id @default(cuid())
+  supplierId  String    @map("supplier_id")
+  riskType    String    @map("risk_type") // 制裁,诉讼,经营异常,合规,其他
+  description String    @map("description")
+  severity    String    @default("medium") @map("severity") // high, medium, low
+  occurredAt  DateTime  @default(now()) @map("occurred_at")
+  resolvedAt  DateTime? @map("resolved_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  
+  supplier    Supplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  
+  @@map("supplier_risk_events")
 }
 
 // 产品模型
