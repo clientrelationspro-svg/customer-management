@@ -392,34 +392,59 @@ ${aiScriptCounts.whatsapp > 0 ? `| WhatsApp | **${aiScriptCounts.whatsapp}条**�
 ${selectedAngles ? `\n| 切入点 | 至少使用 **${minAngles}个** 合作切入点 |` : ''}${selectedHooks ? `\n| 钩子 | 至少融入 **${minHooks}个** 话术钩子 |` : ''}
 | 深度洞见 | 融入 ${aiInsightCount}个行业/市场洞察 |
 
-## 输出格式 - 严格遵守
+## 输出格式 - 严格遵守（每条占一行，字段间强制换行）
 
-每条话术用以下结构化格式，之间用 --- 分隔：
+每条话术必须严格按以下格式输出，字段之间用空行分隔，以提高识别正确率：
 
 === 新增话术 ===
+
 type: "whatsapp"
-title: "产品介绍"
-content: Hi John，了解到贵司在电子元器件采购方面的需求，我们公司专注于高品质PCB板制造...
+
+title: "产品介绍话术"
+
+content: |
+  Hi [客户名]，了解到贵司在电子元器件采购方面的需求。
+  我们公司专注于高品质PCB板制造，拥有完整供应链。
+  希望能与您进一步沟通合作可能性。
 
 ---
 
 === 新增话术 ===
+
 type: "email"
-title: "正式报价"
-content: Dear John，
-Thank you for your inquiry regarding our products.
-Please find the quotation attached.
+
+title: "正式报价邮件"
+
+content: |
+  Dear [客户名]，
+
+  Thank you for your inquiry regarding our products.
+  Please find the attached quotation for your review.
+
+  Best regards
 
 ---
 
 === 新增话术 ===
-type: "phone"
-title: "开发确认"
-content: 1. 确认客户是否收到报价邮件
-2. 了解客户对价格的反馈
 
-type可选值：whatsapp, email, phone, wechat
-禁止：代码块、开场白、编号、解释`;
+type: "phone"
+
+title: "电话跟进脚本"
+
+content: |
+  1. 问候并确认客户是否收到报价邮件
+  2. 了解客户对产品规格和价格的反馈
+  3. 预约下次沟通时间
+
+---
+
+🛑 强制规则（违反将导致导入失败）：
+- 每条话术必须从「=== 新增话术 ===」开始，独占一行
+- type、title、content 各占单独一行，之间至少一个空行
+- content 内容使用「content: |」开头，内容另起一行，可多行
+- 多条话术之间用「---」分隔，独占一行
+- type可选值：whatsapp, email, phone, wechat
+- 禁止：代码块标记、编号前缀（1. 2. 3.）、任何额外解释文字`;
 
     setAiPrompt(prompt);
   };

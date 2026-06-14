@@ -77,17 +77,17 @@ export async function GET(request: NextRequest) {
       prompt += `nextFollowUpDate: ""               # 下次开发日期 YYYY-MM-DD\n`;
       prompt += `remarks: "客户对价格比较敏感"       # 备注\n\n`;
 
-      prompt += `=== 新增话术 ===\n`;
-      prompt += `type: "whatsapp"\n`;
-      prompt += `title: "话术标题"\n`;
+      prompt += `=== 新增话术 ===\n\n`;
+      prompt += `type: "whatsapp"\n\n`;
+      prompt += `title: "话术标题"\n\n`;
       prompt += `content: |\n`;
-      prompt += `  话术内容（多行）\n`;
+      prompt += `  话术内容（多行）\n\n`;
       prompt += `nextFollowUpDate: ""\n\n`;
 
-      prompt += `type: "email"\n`;
-      prompt += `title: "邮件标题"\n`;
+      prompt += `type: "email"\n\n`;
+      prompt += `title: "邮件标题"\n\n`;
       prompt += `content: |\n`;
-      prompt += `  邮件内容（多行）\n`;
+      prompt += `  邮件内容（多行）\n\n`;
       prompt += `nextFollowUpDate: ""\n`;
       prompt += `\`\`\`\n`;
     } else {
