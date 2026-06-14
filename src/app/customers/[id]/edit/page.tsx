@@ -74,6 +74,12 @@ export default function EditCustomerPage() {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  // 备注自动保存
+  const [notesSaved, setNotesSaved] = useState(false);
+  const [notesSaving, setNotesSaving] = useState(false);
+  const [notesTimer, setNotesTimer] = useState<NodeJS.Timeout | null>(null);
+  const [originalNotes, setOriginalNotes] = useState('');
+
   // AI 分析面板
   const [showAiPanel, setShowAiPanel] = useState(false);
   const [aiCopied, setAiCopied] = useState(false);
@@ -255,6 +261,7 @@ ${formData.companyName || '公司名称'} | [规模] | [国家] | [成立日期]
           level: customer.level || 'C',
           status: customer.status || 'active',
         });
+        setOriginalNotes(customer.notes || '');
         setAllContacts(customer.contacts || []);
       }
     } catch (error) {
@@ -272,6 +279,54 @@ ${formData.companyName || '公司名称'} | [规模] | [国家] | [成立日期]
       [name]: value,
     }));
   };
+
+  // 单独保存备注信息
+  const saveNotes = useCallback(async () => {
+    if (formData.notes === originalNotes) {
+      setNotesSaved(true);
+      return;
+    }
+    setNotesSaving(true);
+    try {
+      await fetch(`/api/customers/${customerId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes: formData.notes || null }),
+      });
+      setOriginalNotes(formData.notes);
+      setNotesSaved(true);
+      setTimeout(() => setNotesSaved(false), 2000);
+    } catch (error) {
+      console.error('Error saving notes:', error);
+    } finally {
+      setNotesSaving(false);
+    }
+  }, [formData.notes, originalNotes, customerId]);
+
+  // 备注自动保存：2秒无输入后自动保存
+  useEffect(() => {
+    if (notesTimer) clearTimeout(notesTimer);
+    if (formData.notes !== originalNotes) {
+      const timer = setTimeout(() => {
+        saveNotes();
+      }, 2000);
+      setNotesTimer(timer);
+    }
+    return () => { if (notesTimer) clearTimeout(notesTimer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.notes]);
+
+  // 页面离开时自动保存备注
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (formData.notes !== originalNotes && navigator.sendBeacon) {
+        navigator.sendBeacon(`/api/customers/${customerId}`, 
+          new Blob([JSON.stringify({ notes: formData.notes || null })], { type: 'application/json' }));
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [formData.notes, originalNotes, customerId]);
   
   // 提交表单
   const handleSubmit = async (e: React.FormEvent) => {
@@ -444,7 +499,25 @@ ${formData.companyName || '公司名称'} | [规模] | [国家] | [成立日期]
         {activeTab === 'basic' && (
           <div className="bg-white rounded-lg shadow p-4 md:p-6 mb-6">
             <h2 className="text-lg font-semibold mb-4">基本信息</h2>
-            
+
+            {/* 备注信息 — 始终可编辑，自动保存 */}
+            <div className="mb-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium text-gray-700">📝 备注信息</label>
+                {notesSaved && <span className="text-xs text-green-600 flex items-center gap-1"><CheckCircle className="w-3 h-3" />已自动保存</span>}
+                {notesSaving && <span className="text-xs text-blue-600 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />保存中...</span>}
+              </div>
+              <textarea
+                name="notes"
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500 text-sm resize-y min-h-[80px]"
+                value={formData.notes}
+                onChange={handleInputChange}
+                onBlur={saveNotes}
+                placeholder="记录客户背景、沟通要点、注意事项等有价值的信息..."
+              />
+            </div>
+
             {/* 公司名称带查重 */}
             <div className="mb-4">
               <label className="block text-sm font-medium mb-1">
@@ -572,18 +645,6 @@ ${formData.companyName || '公司名称'} | [规模] | [国家] | [成立日期]
               />
             </div>
             
-            {/* 备注信息 */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">备注信息</label>
-              <textarea
-                name="notes"
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
-                value={formData.notes}
-                onChange={handleInputChange}
-                placeholder="请输入备注信息"
-              />
-            </div>
           </div>
         )}
         
