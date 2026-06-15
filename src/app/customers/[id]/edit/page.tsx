@@ -556,19 +556,14 @@ ${formData.companyName || '公司名称'} | [规模] | [国家] | [成立日期]
             {/* 企业规模 */}
             <div className="mb-4">
               <label className="block text-sm font-medium mb-1">企业规模</label>
-              <select
+              <input
+                type="text"
                 name="enterpriseScale"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
                 value={formData.enterpriseScale}
                 onChange={handleInputChange}
-              >
-                <option value="">请选择企业规模</option>
-                <option value="微型企业">微型企业</option>
-                <option value="小型企业">小型企业</option>
-                <option value="中型企业">中型企业</option>
-                <option value="大型企业">大型企业</option>
-                <option value="跨国企业">跨国企业</option>
-              </select>
+                placeholder="如: 中型企业、50-100人、年营收5000万"
+              />
             </div>
             
             {/* 国家 */}
