@@ -187,7 +187,7 @@ export default function CustomerDetailPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="flex flex-col gap-6">
         {/* 基本信息 */}
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center gap-2 mb-4">
@@ -288,7 +288,7 @@ export default function CustomerDetailPage() {
 
         {/* 最近订单 */}
         {customer.orders && customer.orders.length > 0 && (
-          <div className="bg-white rounded-lg shadow p-6 col-span-2">
+          <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">最近订单</h2>
               <Button onClick={() => router.push('/orders')} size="sm" variant="secondary">查看全部</Button>
