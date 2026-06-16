@@ -1,5 +1,5 @@
 {
-  "buildCommand": "chmod +x build.sh && ./build.sh",
+  "buildCommand": "perl -i -pe 's/provider = \"sqlite\"/provider = \"postgresql\"/' prisma/schema.prisma && npx prisma db push --accept-data-loss --skip-generate && npx prisma generate && next build",
   "installCommand": "npm install",
   "framework": "nextjs"
 }
