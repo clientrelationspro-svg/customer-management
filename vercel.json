@@ -1,5 +1,5 @@
 {
-  "buildCommand": "node -e \"const fs=require('fs');let s=fs.readFileSync('prisma/schema.prisma','utf8');s=s.replace(/provider = \\\"sqlite\\\"/g,'provider = \\\"postgresql\\\"');fs.writeFileSync('prisma/schema.prisma',s)\" && npx prisma db push --accept-data-loss --skip-generate && npx prisma generate && next build",
+  "buildCommand": "chmod +x build.sh && ./build.sh",
   "installCommand": "npm install",
   "framework": "nextjs"
 }
