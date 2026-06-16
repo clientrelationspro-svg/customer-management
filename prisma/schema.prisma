@@ -49,6 +49,7 @@ model Customer {
   followUps       FollowUp[] // 关联跟进记录
   scripts         FollowUpScript[] // 关联跟进话术
   needs           CustomerNeed[] // 关联需求分析
+  inquiries       Inquiry[] // 关联询价
   
   @@index([userId])
   @@map("customers")
@@ -357,4 +358,80 @@ model UserSkill {
   
   @@index([userId])
   @@map("user_skills")
+}
+
+// 邮件配置模型
+model EmailConfig {
+  id          String   @id @default(cuid())
+  imapHost    String   @map("imap_host")
+  imapPort    Int      @default(993) @map("imap_port")
+  imapUser    String   @map("imap_user")
+  imapPass    String   @map("imap_pass")
+  smtpHost    String   @map("smtp_host")
+  smtpPort    Int      @default(465) @map("smtp_port")
+  smtpUser    String   @map("smtp_user")
+  smtpPass    String   @map("smtp_pass")
+  fromName    String   @map("from_name") // 发件人显示名称
+  isActive    Boolean  @default(true) @map("is_active")
+  lastSyncAt  DateTime? @map("last_sync_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  inquiries   Inquiry[]
+
+  @@map("email_configs")
+}
+
+// 询价邮件模型
+model Inquiry {
+  id              String    @id @default(cuid())
+  emailConfigId   String?   @map("email_config_id")
+  customerId      String?   @map("customer_id")
+  messageId       String?   @unique @map("message_id") // 邮件Message-ID，防重复
+  fromEmail       String    @map("from_email")
+  fromName        String?   @map("from_name")
+  subject         String    @map("subject")
+  body            String    @map("body")
+  bodyHtml        String?   @map("body_html")
+  language        String?   @map("language") // zh, en, es
+  status          String    @default("new") @map("status") // new, processing, reviewed, replied, archived
+
+  // AI 提取的询价要点
+  productInterested String? @map("product_interested")
+  quantity         String?  @map("quantity")
+  deliveryRequired String?  @map("delivery_required")
+  aiSummary        String?  @map("ai_summary")
+
+  // AI 生成的回复草稿
+  aiDraftSubject   String?  @map("ai_draft_subject")
+  aiDraftBody      String?  @map("ai_draft_body")
+
+  // 审核后的最终回复
+  finalSubject     String?  @map("final_subject")
+  finalBody        String?  @map("final_body")
+  repliedAt        DateTime? @map("replied_at")
+  replyMessageId   String?  @map("reply_message_id")
+
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  emailConfig      EmailConfig? @relation(fields: [emailConfigId], references: [id])
+  customer         Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  replies          InquiryReply[]
+
+  @@map("inquiries")
+}
+
+// 回复记录模型
+model InquiryReply {
+  id          String   @id @default(cuid())
+  inquiryId   String   @map("inquiry_id")
+  subject     String   @map("subject")
+  body        String   @map("body")
+  sentAt      DateTime @default(now()) @map("sent_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  inquiry     Inquiry  @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+
+  @@map("inquiry_replies")
 }
