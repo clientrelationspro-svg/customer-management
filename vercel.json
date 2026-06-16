@@ -1,5 +1,5 @@
 {
-  "buildCommand": "perl -i -pe 's/provider = \"sqlite\"/provider = \"postgresql\"/' prisma/schema.prisma && npx prisma db push --accept-data-loss --skip-generate && npx prisma generate && next build",
+  "buildCommand": "perl -i -pe 's/provider = \"sqlite\"/provider = \"postgresql\"/' prisma/schema.prisma && npx prisma generate && node prisma/setup-inquiries.js && next build",
   "installCommand": "npm install --legacy-peer-deps",
   "framework": "nextjs"
 }
