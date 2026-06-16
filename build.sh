@@ -2,7 +2,7 @@
 set -e
 
 echo "=== Switching provider to postgresql ==="
-sed -i 's/provider = "sqlite"/provider = "postgresql"/' prisma/schema.prisma
+perl -i -pe 's/provider = "sqlite"/provider = "postgresql"/' prisma/schema.prisma
 
 echo "=== Pushing DB schema ==="
 npx prisma db push --accept-data-loss --skip-generate
