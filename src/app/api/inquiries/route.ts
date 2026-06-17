@@ -177,8 +177,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, message: `成功拉取 ${newCount} 封新邮件`, created: newCount });
     }
     return NextResponse.json({ success: false, error: '不支持的操作' }, { status: 400 });
-  } catch (error) {
-    console.error('Error:', error);
-    return NextResponse.json({ success: false, error: '操作失败' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Sync error:', error?.message || error);
+    return NextResponse.json({ success: false, error: `操作失败: ${error?.message || '未知错误'}` }, { status: 500 });
   }
 }

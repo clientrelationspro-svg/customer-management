@@ -19,31 +19,49 @@ interface FetchedEmail {
   date: Date;
 }
 
-// 连接 IMAP 并拉取未读邮件
 export async function fetchUnreadEmails(config: ImapConfig, since?: Date): Promise<FetchedEmail[]> {
   return new Promise((resolve, reject) => {
     const imap = new Imap({
       ...config,
       tls: true,
       tlsOptions: { rejectUnauthorized: false },
+      connTimeout: 30000,
+      authTimeout: 15000,
     });
 
     const emails: FetchedEmail[] = [];
+    let resolved = false;
+
+    // 超时保护（Vercel 限制 10s，设为 9s）
+    const timer = setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        try { imap.destroy(); } catch {}
+        resolve(emails); // 不报错，返回空数组
+      }
+    }, 9000);
+
+    const done = () => {
+      if (!resolved) {
+        resolved = true;
+        clearTimeout(timer);
+        try { imap.end(); } catch {}
+        resolve(emails);
+      }
+    };
 
     imap.once('ready', () => {
       imap.openBox('INBOX', false, (err) => {
-        if (err) { imap.end(); return reject(err); }
+        if (err) { console.error('IMAP openBox error:', err.message); return done(); }
 
         const criteria: any[] = ['UNSEEN'];
         if (since) criteria.push(['SINCE', since]);
 
         imap.search(criteria, (err, results) => {
-          if (err || !results.length) { imap.end(); return resolve(emails); }
+          if (err) { console.error('IMAP search error:', err.message); return done(); }
+          if (!results?.length) return done();
 
-          const fetch = imap.fetch(results, {
-            bodies: '',
-            struct: true,
-          });
+          const fetch = imap.fetch(results, { bodies: '', struct: true });
 
           fetch.on('message', (msg: any) => {
             msg.on('body', (stream: any) => {
@@ -62,14 +80,22 @@ export async function fetchUnreadEmails(config: ImapConfig, since?: Date): Promi
             });
           });
 
-          fetch.once('error', (err) => { console.error('Fetch error:', err); });
-          fetch.once('end', () => { imap.end(); });
+          fetch.once('error', (err) => { console.error('IMAP fetch error:', err.message); });
+          fetch.once('end', () => done());
         });
       });
     });
 
-    imap.once('error', (err) => reject(err));
-    imap.once('end', () => resolve(emails));
-    imap.connect();
+    imap.once('error', (err) => {
+      console.error('IMAP connection error:', err.message);
+      done();
+    });
+
+    try {
+      imap.connect();
+    } catch (err) {
+      console.error('IMAP connect error:', err.message);
+      done();
+    }
   });
 }
