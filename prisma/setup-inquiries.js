@@ -4,99 +4,66 @@ const prisma = new PrismaClient();
 
 async function main() {
   console.log('=== Setting up inquiries tables ===');
-  
-  // 使用 Prisma raw query 创建表（IF NOT EXISTS 防止重复）
-  const queries = [
-    `CREATE TABLE IF NOT EXISTS "email_configs" (
-      "id" TEXT PRIMARY KEY,
-      "imap_host" TEXT NOT NULL,
-      "imap_port" INTEGER NOT NULL DEFAULT 993,
-      "imap_user" TEXT NOT NULL,
-      "imap_pass" TEXT NOT NULL,
-      "smtp_host" TEXT NOT NULL,
-      "smtp_port" INTEGER NOT NULL DEFAULT 465,
-      "smtp_user" TEXT NOT NULL,
-      "smtp_pass" TEXT NOT NULL,
-      "from_name" TEXT NOT NULL,
-      "is_active" BOOLEAN NOT NULL DEFAULT true,
-      "last_sync_at" TIMESTAMP(3),
-      "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  // 核心表
+  const tables = [
+    ['email_configs', `CREATE TABLE IF NOT EXISTS "email_configs" (
+      "id" TEXT PRIMARY KEY, "imap_host" TEXT NOT NULL, "imap_port" INTEGER NOT NULL DEFAULT 993,
+      "imap_user" TEXT NOT NULL, "imap_pass" TEXT NOT NULL, "smtp_host" TEXT NOT NULL,
+      "smtp_port" INTEGER NOT NULL DEFAULT 465, "smtp_user" TEXT NOT NULL, "smtp_pass" TEXT NOT NULL,
+      "from_name" TEXT NOT NULL, "is_active" BOOLEAN NOT NULL DEFAULT true,
+      "last_sync_at" TIMESTAMP(3), "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       "updated_at" TIMESTAMP(3) NOT NULL
-    )`,
-    `CREATE TABLE IF NOT EXISTS "inquiries" (
-      "id" TEXT PRIMARY KEY,
-      "email_config_id" TEXT,
-      "customer_id" TEXT,
-      "message_id" TEXT,
-      "from_email" TEXT NOT NULL,
-      "from_name" TEXT,
-      "subject" TEXT NOT NULL,
-      "body" TEXT NOT NULL,
-      "body_html" TEXT,
-      "language" TEXT,
-      "status" TEXT NOT NULL DEFAULT 'new',
-      "product_interested" TEXT,
-      "quantity" TEXT,
-      "delivery_required" TEXT,
-      "ai_summary" TEXT,
-      "ai_draft_subject" TEXT,
-      "ai_draft_body" TEXT,
-      "final_subject" TEXT,
-      "final_body" TEXT,
-      "replied_at" TIMESTAMP(3),
-      "reply_message_id" TEXT,
-      "scheduled_at" TIMESTAMP(3),
-      "follow_up_enabled" BOOLEAN NOT NULL DEFAULT false,
-      "follow_up_interval" INTEGER,
-      "follow_up_until" TIMESTAMP(3),
-      "next_follow_up_at" TIMESTAMP(3),
-      "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "updated_at" TIMESTAMP(3) NOT NULL
-    )`,
-    `CREATE TABLE IF NOT EXISTS "inquiry_replies" (
-      "id" TEXT PRIMARY KEY,
-      "inquiry_id" TEXT NOT NULL,
-      "subject" TEXT NOT NULL,
-      "body" TEXT NOT NULL,
-      "sent_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    )`],
+    ['inquiries', `CREATE TABLE IF NOT EXISTS "inquiries" (
+      "id" TEXT PRIMARY KEY, "email_config_id" TEXT, "customer_id" TEXT, "message_id" TEXT,
+      "from_email" TEXT NOT NULL, "from_name" TEXT, "subject" TEXT NOT NULL,
+      "body" TEXT NOT NULL, "body_html" TEXT, "language" TEXT,
+      "status" TEXT NOT NULL DEFAULT 'new', "product_interested" TEXT, "quantity" TEXT,
+      "delivery_required" TEXT, "ai_summary" TEXT, "ai_draft_subject" TEXT, "ai_draft_body" TEXT,
+      "final_subject" TEXT, "final_body" TEXT, "replied_at" TIMESTAMP(3), "reply_message_id" TEXT,
+      "scheduled_at" TIMESTAMP(3), "follow_up_enabled" BOOLEAN NOT NULL DEFAULT false,
+      "follow_up_interval" INTEGER, "follow_up_until" TIMESTAMP(3), "next_follow_up_at" TIMESTAMP(3),
+      "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updated_at" TIMESTAMP(3) NOT NULL
+    )`],
+    ['inquiry_replies', `CREATE TABLE IF NOT EXISTS "inquiry_replies" (
+      "id" TEXT PRIMARY KEY, "inquiry_id" TEXT NOT NULL, "subject" TEXT NOT NULL,
+      "body" TEXT NOT NULL, "sent_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
-    )`,
-    `CREATE TABLE IF NOT EXISTS "scheduled_follow_ups" (
-      "id" TEXT PRIMARY KEY,
-      "inquiry_id" TEXT,
-      "customer_id" TEXT,
-      "subject" TEXT NOT NULL,
-      "body" TEXT NOT NULL,
-      "scheduled_at" TIMESTAMP(3) NOT NULL,
-      "status" TEXT NOT NULL DEFAULT 'pending',
-      "sort_order" INTEGER NOT NULL DEFAULT 0,
-      "sent_at" TIMESTAMP(3),
-      "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
-    )`,
-    `CREATE UNIQUE INDEX IF NOT EXISTS "inquiries_message_id_key" ON "inquiries"("message_id")`,
+    )`],
+    ['scheduled_follow_ups', `CREATE TABLE IF NOT EXISTS "scheduled_follow_ups" (
+      "id" TEXT PRIMARY KEY, "inquiry_id" TEXT, "customer_id" TEXT,
+      "subject" TEXT NOT NULL, "body" TEXT NOT NULL, "scheduled_at" TIMESTAMP(3) NOT NULL,
+      "status" TEXT NOT NULL DEFAULT 'pending', "sort_order" INTEGER NOT NULL DEFAULT 0,
+      "sent_at" TIMESTAMP(3), "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`],
   ];
 
-  // 补充：为已有表添加新列
-  const alterQueries = [
+  for (const [name, sql] of tables) {
+    try {
+      await prisma.$executeRawUnsafe(sql);
+      console.log(`  ✓ table ${name} ready`);
+    } catch (e) {
+      console.error(`  ✗ table ${name} failed: ${e.message}`);
+    }
+  }
+
+  // 索引
+  try { await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "inquiries_message_id_key" ON "inquiries"("message_id")`); console.log('  ✓ index'); } catch {}
+  
+  // 补充列（ALTER）
+  const alters = [
     `ALTER TABLE "inquiries" ADD COLUMN IF NOT EXISTS "scheduled_at" TIMESTAMP(3)`,
-    `ALTER TABLE "inquiries" ADD COLUMN IF NOT EXISTS "follow_up_enabled" BOOLEAN NOT NULL DEFAULT false`,
+    `ALTER TABLE "inquiries" ADD COLUMN IF NOT EXISTS "follow_up_enabled" BOOLEAN DEFAULT false`,
     `ALTER TABLE "inquiries" ADD COLUMN IF NOT EXISTS "follow_up_interval" INTEGER`,
     `ALTER TABLE "inquiries" ADD COLUMN IF NOT EXISTS "follow_up_until" TIMESTAMP(3)`,
     `ALTER TABLE "inquiries" ADD COLUMN IF NOT EXISTS "next_follow_up_at" TIMESTAMP(3)`,
   ];
-
-  for (const query of alterQueries) {
-    try {
-      await prisma.$executeRawUnsafe(query);
-      console.log('  ✓ alter executed');
-    } catch (e) {
-      console.log('  ⚠ ' + e.message);
-    }
+  for (const sql of alters) {
+    try { await prisma.$executeRawUnsafe(sql); console.log('  ✓ alter'); } catch {}
   }
-  
+
   console.log('=== Setup complete ===');
 }
 
-main()
-  .catch(console.error)
-  .finally(() => prisma.$disconnect());
+main().catch(console.error).finally(() => prisma.$disconnect());
