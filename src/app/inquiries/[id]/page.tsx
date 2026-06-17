@@ -6,6 +6,7 @@ import { ArrowLeft, Send, RefreshCw, Save, UserPlus, CheckCircle, AlertCircle, M
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import MarkdownEditor, { markdownToHtml } from '@/components/ui/MarkdownEditor';
+import SequencePromptBuilder from '@/components/follow-up/SequencePromptBuilder';
 
 interface Inquiry {
   id: string; messageId?: string; fromEmail: string; fromName?: string;
@@ -306,11 +307,20 @@ export default function InquiryDetailPage() {
 
           {/* 定时跟进邮件序列 */}
           <Card>
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <h2 className="font-semibold flex items-center gap-2">⏰ 定时跟进序列 ({scheduledFollowUps.length})</h2>
-              <Button size="sm" variant="secondary" onClick={() => { setShowFollowUpForm(!showFollowUpForm); setNewFollowUp({ subject: '', body: '', scheduledAt: '' }); }}>
-                + 添加定时邮件
-              </Button>
+              <div className="flex gap-2">
+                <SequencePromptBuilder
+                  customerId={inquiry?.customer?.id}
+                  inquirySubject={inquiry?.subject}
+                  inquiryBody={inquiry?.body}
+                  inquiryId={inquiry?.id}
+                  onImport={() => fetchFollowUps()}
+                />
+                <Button size="sm" variant="secondary" onClick={() => { setShowFollowUpForm(!showFollowUpForm); setNewFollowUp({ subject: '', body: '', scheduledAt: '' }); }}>
+                  + 添加定时邮件
+                </Button>
+              </div>
             </div>
 
             {showFollowUpForm && (
