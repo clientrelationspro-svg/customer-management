@@ -222,7 +222,9 @@ export default function InquiryDetailPage() {
                       <span className="text-sm font-medium">{r.subject}</span>
                       <span className="text-xs text-gray-500 ml-auto">{new Date(r.sentAt).toLocaleString('zh-CN')}</span>
                     </div>
-                    <p className="text-sm text-gray-600 line-clamp-2">{r.body.replace(/<[^>]+>/g, '')}</p>
+                    <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed"
+                      dangerouslySetInnerHTML={{ __html: r.body.includes('<') ? r.body : markdownToHtml(r.body) }}
+                    />
                   </div>
                 ))}
               </div>
