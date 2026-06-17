@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
         try {
           const [points, tags] = await Promise.all([
             extractInquiryPoints(email.subject, email.body, language),
-            classifyEmail(email.subject, email.body, language),
+            classifyEmail(email.subject, email.body),
           ]);
 
           const customerInfo = customer
