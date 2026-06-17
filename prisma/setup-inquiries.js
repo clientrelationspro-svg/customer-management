@@ -64,10 +64,19 @@ async function main() {
     `CREATE UNIQUE INDEX IF NOT EXISTS "inquiries_message_id_key" ON "inquiries"("message_id")`,
   ];
 
-  for (const query of queries) {
+  // 补充：为已有表添加新列
+  const alterQueries = [
+    `ALTER TABLE "inquiries" ADD COLUMN IF NOT EXISTS "scheduled_at" TIMESTAMP(3)`,
+    `ALTER TABLE "inquiries" ADD COLUMN IF NOT EXISTS "follow_up_enabled" BOOLEAN NOT NULL DEFAULT false`,
+    `ALTER TABLE "inquiries" ADD COLUMN IF NOT EXISTS "follow_up_interval" INTEGER`,
+    `ALTER TABLE "inquiries" ADD COLUMN IF NOT EXISTS "follow_up_until" TIMESTAMP(3)`,
+    `ALTER TABLE "inquiries" ADD COLUMN IF NOT EXISTS "next_follow_up_at" TIMESTAMP(3)`,
+  ];
+
+  for (const query of alterQueries) {
     try {
       await prisma.$executeRawUnsafe(query);
-      console.log('  ✓ executed');
+      console.log('  ✓ alter executed');
     } catch (e) {
       console.log('  ⚠ ' + e.message);
     }
