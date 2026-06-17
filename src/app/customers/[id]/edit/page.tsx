@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Save, Plus, Trash2, AlertCircle, CheckCircle, Loader2, Sparkles, Copy, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import CountrySelect from '@/components/ui/CountrySelect';
+import MarkdownEditor from '@/components/ui/MarkdownEditor';
 
 interface Contact {
   id: string;
@@ -507,15 +508,18 @@ ${formData.companyName || '公司名称'} | [规模] | [国家] | [成立日期]
                 {notesSaved && <span className="text-xs text-green-600 flex items-center gap-1"><CheckCircle className="w-3 h-3" />已自动保存</span>}
                 {notesSaving && <span className="text-xs text-blue-600 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />保存中...</span>}
               </div>
-              <textarea
-                name="notes"
-                rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500 text-sm resize-y min-h-[80px]"
-                value={formData.notes}
-                onChange={handleInputChange}
-                onBlur={saveNotes}
-                placeholder="记录客户背景、沟通要点、注意事项等有价值的信息..."
-              />
+              <div className="markdown-editor-wrapper">
+                <MarkdownEditor
+                  value={formData.notes}
+                  onChange={(val) => setFormData(prev => ({ ...prev, notes: val }))}
+                  placeholder="记录客户背景、沟通要点、注意事项等有价值的信息..."
+                  rows={5}
+                />
+              </div>
+              {/* 自动保存：失焦时触发 */}
+              <div className="hidden">
+                <textarea value={formData.notes} readOnly onBlur={saveNotes} />
+              </div>
             </div>
 
             {/* 公司名称带查重 */}
