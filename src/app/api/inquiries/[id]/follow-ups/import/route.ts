@@ -7,24 +7,35 @@ export const dynamic = 'force-dynamic';
 // 解析 WorkBuddy 输出格式
 function parseSequence(text: string): { subject: string; body: string; scheduledAt: string }[] {
   const result: { subject: string; body: string; scheduledAt: string }[] = [];
-  
+
   // 按 "--- 第N封 ---" 分割
   const blocks = text.split(/---\s*第\d+封\s*---/i);
-  
+
   for (const block of blocks) {
     if (!block.trim()) continue;
 
-    // 提取 subject
+    // 提取 subject: "xxx"
     const subjMatch = block.match(/subject:\s*"([^"]*)"/i);
     const subject = subjMatch?.[1] || '';
 
-    // 提取 scheduledAt
+    // 提取 scheduledAt: "xxx"
     const timeMatch = block.match(/scheduledAt:\s*"([^"]*)"/i);
     const scheduledAt = timeMatch?.[1] || '';
 
-    // 提取 content（content: | 后面的多行内容）
-    const contentMatch = block.match(/content:\s*\|\s*\n([\s\S]*?)(?=\n(?:---|subject:|$))/i);
-    const body = contentMatch?.[1]?.trim() || '';
+    // 提取 content: | 后面的内容（直到下一个 --- 或 subject: 或文件末尾）
+    const contentIdx = block.indexOf('content:');
+    if (contentIdx === -1) continue;
+
+    const afterContent = block.slice(contentIdx);
+    // 移除 "content: |" 行
+    const bodyLines = afterContent.split('\n').slice(1);
+    // 收集内容直到遇到 --- 或下一个 subject:
+    const cleanLines: string[] = [];
+    for (const line of bodyLines) {
+      if (line.match(/^subject:/i) || line.match(/^---/)) break;
+      cleanLines.push(line);
+    }
+    const body = cleanLines.join('\n').trim();
 
     if (subject && body && scheduledAt) {
       result.push({ subject, body, scheduledAt });
