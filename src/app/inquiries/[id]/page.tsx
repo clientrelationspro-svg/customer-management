@@ -33,6 +33,8 @@ export default function InquiryDetailPage() {
   const [assignCustomerId, setAssignCustomerId] = useState('');
   const [replyMode, setReplyMode] = useState<'auto' | 'guided'>('auto');
   const [userNotes, setUserNotes] = useState('');
+  const [attachments, setAttachments] = useState<{ url: string; filename: string; size: number; type: string }[]>([]);
+  const [uploadingFile, setUploadingFile] = useState(false);
   const [customers, setCustomers] = useState<{ id: string; companyName: string }[]>([]);
 
   const fetchInquiry = async () => {
@@ -87,7 +89,7 @@ export default function InquiryDetailPage() {
     const htmlBody = editBody.includes('<') ? editBody : markdownToHtml(editBody);
     const res = await fetch(`/api/inquiries/${id}/send`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ subject: editSubject, body: htmlBody }),
+      body: JSON.stringify({ subject: editSubject, body: htmlBody, attachments: attachments.map(a => ({ filename: a.filename, path: a.url })) }),
     });
     setSending(false);
     if (res.ok) { alert('回复已发送！'); fetchInquiry(); }
@@ -205,7 +207,35 @@ export default function InquiryDetailPage() {
               <div className="space-y-3">
                 <input type="text" value={editSubject} onChange={e => setEditSubject(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium" placeholder="回复主题" />
-                <MarkdownEditor value={editBody} onChange={setEditBody} placeholder="使用 Markdown 编写回复邮件..." />
+                
+                {/* 附件管理 */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <label className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-dashed border-gray-300 rounded-lg text-xs text-gray-500 cursor-pointer hover:border-blue-400 hover:text-blue-600 transition-colors">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+                    {uploadingFile ? '上传中...' : '添加附件'}
+                    <input type="file" className="hidden" onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setUploadingFile(true);
+                      const fd = new FormData(); fd.append('file', file);
+                      const res = await fetch(`/api/inquiries/${id}/upload`, { method: 'POST', body: fd });
+                      const data = await res.json();
+                      if (data.success) setAttachments(prev => [...prev, data.data]);
+                      setUploadingFile(false);
+                      e.target.value = '';
+                    }} />
+                  </label>
+                  {attachments.map((a, i) => (
+                    <span key={i} className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-xs text-gray-600">
+                      {a.type?.startsWith('image/') ? '🖼' : '📎'} {a.filename}
+                      <button onClick={() => setAttachments(prev => prev.filter((_, j) => j !== i))} className="ml-1 text-red-400 hover:text-red-600">&times;</button>
+                    </span>
+                  ))}
+                </div>
+
+                <MarkdownEditor value={editBody} onChange={setEditBody} 
+                  uploadUrl={`/api/inquiries/${id}/upload`}
+                  placeholder="使用 Markdown 编写回复邮件..." />
               </div>
             </Card>
           )}

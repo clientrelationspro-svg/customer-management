@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Bold, Italic, List, Link, Quote, Heading, Eye, Edit3 } from 'lucide-react';
+import { Bold, Italic, List, Link, Quote, Heading, Eye, Edit3, Image } from 'lucide-react';
 
 // 简易 Markdown → HTML 转换
 function markdownToHtml(md: string): string {
@@ -51,16 +51,48 @@ interface Props {
   onChange: (markdown: string) => void;
   placeholder?: string;
   rows?: number;
+  uploadUrl?: string;
+  onUploadStatus?: (status: string) => void;
 }
 
-export default function MarkdownEditor({ value, onChange, placeholder = '', rows = 14 }: Props) {
+export default function MarkdownEditor({ value, onChange, placeholder = '', rows = 14, uploadUrl, onUploadStatus }: Props) {
   const [preview, setPreview] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const insert = useCallback((before: string, after: string = '') => {
     const el = textareaRef.current;
     if (el) insertAtCursor(el, before, after);
   }, []);
+
+  // 图片上传
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !uploadUrl) return;
+
+    setUploading(true);
+    onUploadStatus?.('上传中...');
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch(uploadUrl, { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data.success && data.data.markdown) {
+        insert(data.data.markdown + '\n');
+        onUploadStatus?.('已插入');
+        setTimeout(() => onUploadStatus?.(''), 2000);
+      } else {
+        onUploadStatus?.('上传失败');
+      }
+    } catch {
+      onUploadStatus?.('上传失败');
+    }
+    finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   const toolbar = [
     { icon: Bold, label: '粗体', action: () => insert('**', '**') },
@@ -69,6 +101,7 @@ export default function MarkdownEditor({ value, onChange, placeholder = '', rows
     { icon: Quote, label: '引用', action: () => insert('\n> ', '') },
     { icon: List, label: '列表', action: () => insert('\n- ', '') },
     { icon: Link, label: '链接', action: () => insert('[', '](url)') },
+    { icon: Image, label: '插入图片', action: () => fileInputRef.current?.click() },
   ];
 
   return (
@@ -89,6 +122,9 @@ export default function MarkdownEditor({ value, onChange, placeholder = '', rows
           {preview ? <><Edit3 className="w-3 h-3" /> 编辑</> : <><Eye className="w-3 h-3" /> 预览</>}
         </button>
       </div>
+
+      {/* 隐藏文件上传 */}
+      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
 
       {/* 编辑/预览区域 */}
       {preview ? (

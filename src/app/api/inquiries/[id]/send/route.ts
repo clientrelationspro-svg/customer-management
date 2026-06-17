@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const jsonBody = await request.json();
-    const { subject, body: emailBody } = jsonBody;
+    const { subject, body: emailBody, attachments } = jsonBody;
 
     if (!subject?.trim() || !emailBody?.trim()) {
       return NextResponse.json({ error: '主题和内容不能为空' }, { status: 400 });
@@ -22,12 +22,19 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     if (!config) return NextResponse.json({ error: '邮件配置未找到' }, { status: 400 });
 
     // 发送邮件
+    // 构建附件路径
+    const mailAttachments = (attachments || []).map((a: any) => ({
+      filename: a.filename,
+      path: a.path?.startsWith('/') ? `public${a.path}` : a.path,
+    }));
+
     const replyMessageId = await sendReplyEmail(
       { host: config.smtpHost, port: config.smtpPort, user: config.smtpUser, password: config.smtpPass, fromName: config.fromName },
       inquiry.fromEmail,
       inquiry.messageId || '',
       subject,
-      emailBody
+      emailBody,
+      mailAttachments.length > 0 ? mailAttachments : undefined
     );
 
     // 记录回复
