@@ -47,6 +47,23 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       },
     });
 
+    // 更新客户跟进记录
+    if (inquiry.customerId) {
+      const now = new Date();
+      await prisma.followUp.create({
+        data: {
+          customerId: inquiry.customerId,
+          contactMethod: 'email',
+          followUpMatters: '开发',
+          nextAction: `已回复: ${subject.slice(0, 100)}`,
+          priority: 'high',
+          status: 'in_progress',
+          lastFollowUpDate: now,
+          nextFollowUpDate: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000), // 默认7天后跟进
+        },
+      });
+    }
+
     return NextResponse.json({ success: true, message: '回复已发送' });
   } catch (error: any) {
     console.error('Error sending reply:', error);

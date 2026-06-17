@@ -41,7 +41,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
       const draft = await generateReplyDraft(
         inquiry.subject, inquiry.body, inquiry.language || 'en', customerInfo,
-        { productInterested: inquiry.productInterested || '', quantity: inquiry.quantity || '', deliveryRequired: inquiry.deliveryRequired || '' }
+        { productInterested: inquiry.productInterested || '', quantity: inquiry.quantity || '', deliveryRequired: inquiry.deliveryRequired || '' },
+        ''
       );
 
       await prisma.inquiry.update({

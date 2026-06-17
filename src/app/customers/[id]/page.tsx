@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Edit, Trash2, Building2, Phone, Mail, Globe, Users, Target, Plus, Upload, X, Save, Sparkles, Copy, FileText } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Building2, Phone, Mail, Globe, Users, Target, Plus, Upload, X, Save, Sparkles, Copy, FileText, Send, Clock, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
 interface Customer {
@@ -66,10 +66,50 @@ export default function CustomerDetailPage() {
 
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [loading, setLoading] = useState(true);
+  const [timeline, setTimeline] = useState<any[]>([]);
+  const [timelineLoading, setTimelineLoading] = useState(true);
 
   useEffect(() => {
     fetchCustomer();
   }, [customerId]);
+
+  useEffect(() => {
+    if (customerId) fetchTimeline();
+  }, [customerId]);
+
+  const fetchTimeline = async () => {
+    try {
+      const [emailsRes, followUpsRes] = await Promise.all([
+        fetch(`/api/inquiries?limit=50`),
+        fetch(`/api/follow-ups?limit=50&customerId=${customerId}`),
+      ]);
+      const emails = await emailsRes.json();
+      const followUps = await followUpsRes.json();
+
+      const items: any[] = [];
+      if (emails.success) {
+        emails.data.filter((e: any) => e.customerId === customerId || e.fromEmail === customer?.email).forEach((e: any) => {
+          items.push({
+            type: 'email', id: e.id, date: e.createdAt, subject: e.subject,
+            fromName: e.fromName, fromEmail: e.fromEmail, status: e.status,
+            aiSummary: e.aiSummary, productInterested: e.productInterested,
+          });
+        });
+      }
+      if (followUps.success) {
+        (followUps.data || []).forEach((f: any) => {
+          items.push({
+            type: 'followup', id: f.id, date: f.lastFollowUpDate || f.createdAt,
+            contactMethod: f.contactMethod, nextAction: f.nextAction,
+            followUpMatters: f.followUpMatters,
+          });
+        });
+      }
+      items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setTimeline(items.slice(0, 30));
+    } catch {}
+    finally { setTimelineLoading(false); }
+  };
 
   const fetchCustomer = async () => {
     try {
@@ -283,6 +323,67 @@ export default function CustomerDetailPage() {
             <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{customer.notes}</p>
           ) : (
             <p className="text-sm text-gray-400">暂无备注信息</p>
+          )}
+        </div>
+
+        {/* 沟通时间线 */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Clock size={20} className="text-indigo-600" />
+            <h2 className="text-lg font-semibold">沟通时间线</h2>
+            <span className="text-xs text-gray-400 ml-2">{timeline.length} 条记录</span>
+          </div>
+          {timelineLoading ? (
+            <p className="text-sm text-gray-500">加载中...</p>
+          ) : timeline.length === 0 ? (
+            <p className="text-sm text-gray-400">暂无互动记录</p>
+          ) : (
+            <div className="space-y-3 max-h-[500px] overflow-y-auto">
+              {timeline.map(item => (
+                <div key={`${item.type}-${item.id}`} className="flex gap-3 pl-2 border-l-2 border-gray-100 hover:border-indigo-200 transition-colors">
+                  <div className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center -ml-[15px] bg-white">
+                    {item.type === 'email' ? (
+                      <Mail className="w-4 h-4 text-blue-500" />
+                    ) : item.contactMethod === 'whatsapp' ? (
+                      <MessageCircle className="w-4 h-4 text-green-500" />
+                    ) : item.contactMethod === 'phone' ? (
+                      <Phone className="w-4 h-4 text-orange-500" />
+                    ) : (
+                      <Clock className="w-4 h-4 text-gray-400" />
+                    )}
+                  </div>
+                  <div className="flex-1 pb-3 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                      <span className="text-xs text-gray-400">{new Date(item.date).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                      {item.type === 'email' ? (
+                        <span className="text-xs font-medium text-blue-600">📧 邮件</span>
+                      ) : (
+                        <span className="text-xs font-medium text-gray-500">
+                          {item.contactMethod === 'whatsapp' ? '💬 WhatsApp' : item.contactMethod === 'phone' ? '📞 电话' : item.contactMethod === 'email' ? '📧 邮件' : '📝 其他'}
+                        </span>
+                      )}
+                      {item.status && (() => {
+                        const labels: Record<string, string> = { new: '新邮件', processing: '处理中', reviewed: '待回复', replied: '已回复' };
+                        return (
+                          <span className={`text-xs px-1.5 py-0.5 rounded-full ${item.status === 'replied' ? 'bg-green-100 text-green-700' : item.status === 'processing' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                            {labels[item.status] || item.status}
+                          </span>
+                        );
+                      })()}
+                    </div>
+                    {item.type === 'email' ? (
+                      <>
+                        <p className="text-sm font-medium text-gray-900 truncate">{item.subject}</p>
+                        {item.aiSummary && <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{item.aiSummary}</p>}
+                        <p className="text-xs text-gray-400">{item.fromName} &lt;{item.fromEmail}&gt;</p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-gray-700">{item.nextAction || item.followUpMatters}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
 
