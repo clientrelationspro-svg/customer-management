@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Send, RefreshCw, Save, UserPlus, CheckCircle, AlertCircle, Mail, Package, Calendar, Globe } from 'lucide-react';
+import { ArrowLeft, Send, RefreshCw, Save, UserPlus, CheckCircle, AlertCircle, Mail, Package, Calendar, Globe, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import MarkdownEditor, { markdownToHtml } from '@/components/ui/MarkdownEditor';
@@ -107,7 +107,11 @@ export default function InquiryDetailPage() {
     <div>
       <div className="flex items-center gap-3 mb-6">
         <button onClick={() => router.back()} className="p-2 hover:bg-gray-100 rounded-lg"><ArrowLeft className="w-5 h-5" /></button>
-        <h1 className="text-xl font-bold text-gray-900 truncate">{inquiry.subject}</h1>
+        <h1 className="text-xl font-bold text-gray-900 truncate flex-1">{inquiry.subject}</h1>
+        <button onClick={async () => { if (confirm('确定删除此邮件？')) { await fetch(`/api/inquiries/${id}`, { method: 'DELETE' }); router.push('/inquiries'); } }}
+          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg" title="删除邮件">
+          <Trash2 className="w-5 h-5" />
+        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -58,6 +58,13 @@ export default function InquiriesPage() {
     setConfig(null);
   };
 
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (!confirm('确定删除此邮件？')) return;
+    await fetch(`/api/inquiries/${id}`, { method: 'DELETE' });
+    fetchInquiries();
+  };
+
   const fetchInquiries = useCallback(async () => {
     setLoading(true);
     try {
@@ -196,7 +203,12 @@ export default function InquiriesPage() {
                   </div>
                   {i.aiSummary && <p className="text-sm text-gray-600 mt-1 line-clamp-2">{i.aiSummary}</p>}
                 </div>
-                <Eye className="w-4 h-4 text-gray-400 flex-shrink-0 mt-1" />
+                <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
+                  <button onClick={(e) => handleDelete(e, i.id)} className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded" title="删除">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                  <Eye className="w-4 h-4 text-gray-400 mt-1" />
+                </div>
               </div>
             </div>
           ))}
