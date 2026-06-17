@@ -19,7 +19,7 @@ interface FetchedEmail {
   date: Date;
 }
 
-export async function fetchUnreadEmails(config: ImapConfig, since?: Date): Promise<FetchedEmail[]> {
+export async function fetchUnreadEmails(config: ImapConfig, since?: Date, allEmails?: boolean): Promise<FetchedEmail[]> {
   return new Promise((resolve, reject) => {
     const imap = new Imap({
       ...config,
@@ -54,7 +54,7 @@ export async function fetchUnreadEmails(config: ImapConfig, since?: Date): Promi
       imap.openBox('INBOX', false, (err) => {
         if (err) { console.error('IMAP openBox error:', err.message); return done(); }
 
-        const criteria: any[] = ['UNSEEN'];
+        const criteria: any[] = allEmails ? ['ALL'] : ['UNSEEN'];
         if (since) criteria.push(['SINCE', since]);
 
         imap.search(criteria, (err, results) => {

@@ -89,9 +89,12 @@ export async function POST(request: NextRequest) {
       const config = await prisma.emailConfig.findFirst({ where: { isActive: true } });
       if (!config) return NextResponse.json({ success: false, error: '请先配置邮箱' }, { status: 400 });
 
-      const since = config.lastSyncAt || new Date(Date.now() - 24 * 60 * 60 * 1000);
+      // 同步半年内所有邮件（含已读）
+      const since = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000);
+      const allEmails = body.fullSync ?? true;
       const emails = await fetchUnreadEmails(
-        { host: config.imapHost, port: config.imapPort, user: config.imapUser, password: config.imapPass }, since
+        { host: config.imapHost, port: config.imapPort, user: config.imapUser, password: config.imapPass },
+        since, allEmails
       );
 
       let newCount = 0;
