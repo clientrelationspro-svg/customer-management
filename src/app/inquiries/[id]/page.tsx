@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Send, RefreshCw, Save, UserPlus, CheckCircle, AlertCircle, Mail, Package, Calendar, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import MarkdownEditor, { markdownToHtml } from '@/components/ui/MarkdownEditor';
 
 interface Inquiry {
   id: string; messageId?: string; fromEmail: string; fromName?: string;
@@ -52,9 +53,10 @@ export default function InquiryDetailPage() {
   useEffect(() => { fetchInquiry(); fetch('/api/customers?limit=200').then(r => r.json()).then(d => { if (d.success) setCustomers(d.data || []); }).catch(() => {}); }, [id]);
 
   const handleSaveDraft = async () => {
+    const htmlBody = editBody.includes('<') ? editBody : markdownToHtml(editBody);
     await fetch(`/api/inquiries/${id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ finalSubject: editSubject, finalBody: editBody, customerId: assignCustomerId || null, action: 'review' }),
+      body: JSON.stringify({ finalSubject: editSubject, finalBody: htmlBody, customerId: assignCustomerId || null, action: 'review' }),
     });
     setSaved(true); setTimeout(() => setSaved(false), 2000);
     fetchInquiry();
@@ -81,9 +83,11 @@ export default function InquiryDetailPage() {
     if (!editSubject.trim() || !editBody.trim()) return alert('主题和内容不能为空');
     if (!confirm('确认发送此回复邮件？')) return;
     setSending(true);
+    // Markdown → HTML
+    const htmlBody = editBody.includes('<') ? editBody : markdownToHtml(editBody);
     const res = await fetch(`/api/inquiries/${id}/send`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ subject: editSubject, body: editBody }),
+      body: JSON.stringify({ subject: editSubject, body: htmlBody }),
     });
     setSending(false);
     if (res.ok) { alert('回复已发送！'); fetchInquiry(); }
@@ -201,8 +205,7 @@ export default function InquiryDetailPage() {
               <div className="space-y-3">
                 <input type="text" value={editSubject} onChange={e => setEditSubject(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium" placeholder="回复主题" />
-                <textarea value={editBody} onChange={e => setEditBody(e.target.value)}
-                  rows={12} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-y font-mono" placeholder="回复内容（HTML格式）" />
+                <MarkdownEditor value={editBody} onChange={setEditBody} placeholder="使用 Markdown 编写回复邮件..." />
               </div>
             </Card>
           )}
