@@ -412,6 +412,15 @@ model Inquiry {
   repliedAt        DateTime? @map("replied_at")
   replyMessageId   String?  @map("reply_message_id")
 
+  // 定时发送
+  scheduledAt      DateTime? @map("scheduled_at")
+
+  // 持续跟进
+  followUpEnabled  Boolean   @default(false) @map("follow_up_enabled")
+  followUpInterval Int?      @map("follow_up_interval") // 跟进间隔（天）
+  followUpUntil    DateTime? @map("follow_up_until")    // 跟进截止日期
+  nextFollowUpAt   DateTime? @map("next_follow_up_at")  // 下次跟进提醒时间
+
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 

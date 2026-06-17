@@ -10,6 +10,7 @@ interface Inquiry {
   id: string; fromEmail: string; fromName?: string; subject: string;
   status: string; language?: string; aiSummary?: string;
   productInterested?: string; createdAt: string;
+  scheduledAt?: string; followUpEnabled?: boolean; nextFollowUpAt?: string;
   customer?: { id: string; companyName: string };
 }
 
@@ -94,8 +95,8 @@ export default function InquiriesPage() {
     finally { setSyncing(false); }
   };
 
-  const statusLabel: Record<string, string> = { new: '新邮件', processing: 'AI处理中', reviewed: '待回复', replied: '已回复', archived: '已归档' };
-  const statusColor: Record<string, string> = { new: 'bg-blue-100 text-blue-700', processing: 'bg-purple-100 text-purple-700', reviewed: 'bg-yellow-100 text-yellow-700', replied: 'bg-green-100 text-green-700', archived: 'bg-gray-100 text-gray-500' };
+  const statusLabel: Record<string, string> = { new: '新邮件', processing: 'AI处理中', reviewed: '待回复', replied: '已回复', scheduled: '定时发送', archived: '已归档' };
+  const statusColor: Record<string, string> = { new: 'bg-blue-100 text-blue-700', processing: 'bg-purple-100 text-purple-700', reviewed: 'bg-yellow-100 text-yellow-700', replied: 'bg-green-100 text-green-700', scheduled: 'bg-amber-100 text-amber-700', archived: 'bg-gray-100 text-gray-500' };
   const langFlag: Record<string, string> = { zh: '🇨🇳', en: '🇺🇸', es: '🇪🇸' };
 
   return (
@@ -167,6 +168,7 @@ export default function InquiriesPage() {
             <option value="processing">AI处理中</option>
             <option value="reviewed">待回复</option>
             <option value="replied">已回复</option>
+            <option value="scheduled">定时发送</option>
             <option value="archived">已归档</option>
           </select>
         </div>
@@ -200,6 +202,8 @@ export default function InquiriesPage() {
                     <span>{new Date(i.createdAt).toLocaleString('zh-CN')}</span>
                     {i.productInterested && <span className="text-blue-600">📦 {i.productInterested}</span>}
                     {i.customer && <span className="text-green-600">🏢 {i.customer.companyName}</span>}
+                    {i.scheduledAt && <span className="text-amber-600">⏰ {new Date(i.scheduledAt).toLocaleString('zh-CN', { month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit' })}</span>}
+                    {i.followUpEnabled && <span className="text-purple-600">🔔 跟进中</span>}
                   </div>
                   {i.aiSummary && <p className="text-sm text-gray-600 mt-1 line-clamp-2">{i.aiSummary}</p>}
                 </div>

@@ -35,6 +35,10 @@ export default function InquiryDetailPage() {
   const [userNotes, setUserNotes] = useState('');
   const [attachments, setAttachments] = useState<{ url: string; filename: string; size: number; type: string }[]>([]);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [scheduleMode, setScheduleMode] = useState(false);
+  const [scheduledTime, setScheduledTime] = useState('');
+  const [followUpEnabled, setFollowUpEnabled] = useState(false);
+  const [followUpDays, setFollowUpDays] = useState('7');
   const [customers, setCustomers] = useState<{ id: string; companyName: string }[]>([]);
 
   const fetchInquiry = async () => {
@@ -83,16 +87,21 @@ export default function InquiryDetailPage() {
 
   const handleSend = async () => {
     if (!editSubject.trim() || !editBody.trim()) return alert('主题和内容不能为空');
-    if (!confirm('确认发送此回复邮件？')) return;
+    const confirmMsg = scheduleMode ? `确认设定于 ${scheduledTime} 定时发送？` : '确认立即发送此回复邮件？';
+    if (!confirm(confirmMsg)) return;
     setSending(true);
-    // Markdown → HTML
     const htmlBody = editBody.includes('<') ? editBody : markdownToHtml(editBody);
     const res = await fetch(`/api/inquiries/${id}/send`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ subject: editSubject, body: htmlBody, attachments: attachments.map(a => ({ filename: a.filename, path: a.url })) }),
+      body: JSON.stringify({
+        subject: editSubject, body: htmlBody,
+        attachments: attachments.map(a => ({ filename: a.filename, path: a.url })),
+        scheduledAt: scheduleMode ? scheduledTime : null,
+        followUpEnabled, followUpInterval: followUpEnabled ? parseInt(followUpDays) : null,
+      }),
     });
     setSending(false);
-    if (res.ok) { alert('回复已发送！'); fetchInquiry(); }
+    if (res.ok) { alert(scheduleMode ? '定时发送已设定！' : '回复已发送！'); fetchInquiry(); }
     else { const e = await res.json(); alert(e.error || '发送失败'); }
   };
 
@@ -203,9 +212,34 @@ export default function InquiryDetailPage() {
                 <Button size="sm" variant="secondary" onClick={handleSaveDraft}>
                   <Save className="w-3 h-3 mr-1" />{saved ? '已保存' : '保存草稿'}
                 </Button>
-                <Button size="sm" onClick={handleSend} loading={sending}>
-                  <Send className="w-3 h-3 mr-1" />{sending ? '发送中...' : '发送'}
+                <Button size="sm" onClick={handleSend} loading={sending} className={scheduleMode ? 'bg-amber-600 hover:bg-amber-700' : ''}>
+                  <Send className="w-3 h-3 mr-1" />{sending ? '处理中...' : scheduleMode ? '定时发送' : '发送'}
                 </Button>
+              </div>
+
+              {/* 定时发送 & 持续跟进选项 */}
+              <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-gray-100 text-xs text-gray-500">
+                <label className="flex items-center gap-1 cursor-pointer">
+                  <input type="checkbox" checked={scheduleMode} onChange={e => setScheduleMode(e.target.checked)} className="rounded" />
+                  ⏰ 定时发送
+                </label>
+                {scheduleMode && (
+                  <input type="datetime-local" value={scheduledTime}
+                    onChange={e => setScheduledTime(e.target.value)}
+                    className="px-2 py-1 border border-gray-300 rounded text-xs" />
+                )}
+                <label className="flex items-center gap-1 cursor-pointer">
+                  <input type="checkbox" checked={followUpEnabled} onChange={e => setFollowUpEnabled(e.target.checked)} className="rounded" />
+                  🔔 持续跟进
+                </label>
+                {followUpEnabled && (
+                  <span className="flex items-center gap-1">
+                    每隔
+                    <input type="number" value={followUpDays} onChange={e => setFollowUpDays(e.target.value)}
+                      className="w-12 px-1 py-0.5 border border-gray-300 rounded text-xs text-center" min="1" />
+                    天提醒
+                  </span>
+                )}
               </div>
 
               <div className="space-y-3">

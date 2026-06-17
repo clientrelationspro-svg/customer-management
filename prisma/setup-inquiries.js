@@ -45,6 +45,11 @@ async function main() {
       "final_body" TEXT,
       "replied_at" TIMESTAMP(3),
       "reply_message_id" TEXT,
+      "scheduled_at" TIMESTAMP(3),
+      "follow_up_enabled" BOOLEAN NOT NULL DEFAULT false,
+      "follow_up_interval" INTEGER,
+      "follow_up_until" TIMESTAMP(3),
+      "next_follow_up_at" TIMESTAMP(3),
       "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       "updated_at" TIMESTAMP(3) NOT NULL
     )`,
