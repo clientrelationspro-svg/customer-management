@@ -309,7 +309,7 @@ export default function InquiryDetailPage() {
           <Card>
             <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <h2 className="font-semibold flex items-center gap-2">⏰ 定时跟进序列 ({scheduledFollowUps.length})</h2>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-1">
                 <SequencePromptBuilder
                   customerId={inquiry?.customer?.id}
                   inquirySubject={inquiry?.subject}
@@ -317,9 +317,10 @@ export default function InquiryDetailPage() {
                   inquiryId={inquiry?.id}
                   onImport={() => fetchFollowUps()}
                 />
-                <Button size="sm" variant="secondary" onClick={() => { setShowFollowUpForm(!showFollowUpForm); setNewFollowUp({ subject: '', body: '', scheduledAt: '' }); }}>
+                <button onClick={() => { setShowFollowUpForm(!showFollowUpForm); setNewFollowUp({ subject: '', body: '', scheduledAt: '' }); }}
+                  className="px-2 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
                   + 添加定时邮件
-                </Button>
+                </button>
               </div>
             </div>
 
