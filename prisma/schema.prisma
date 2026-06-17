@@ -50,6 +50,7 @@ model Customer {
   scripts         FollowUpScript[] // 关联跟进话术
   needs           CustomerNeed[] // 关联需求分析
   inquiries       Inquiry[] // 关联询价
+  followUpEmails   ScheduledFollowUp[] // 定时跟进邮件
   
   @@index([userId])
   @@map("customers")
@@ -427,6 +428,7 @@ model Inquiry {
   emailConfig      EmailConfig? @relation(fields: [emailConfigId], references: [id])
   customer         Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
   replies          InquiryReply[]
+  followUpEmails   ScheduledFollowUp[]
 
   @@map("inquiries")
 }
@@ -443,4 +445,23 @@ model InquiryReply {
   inquiry     Inquiry  @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
 
   @@map("inquiry_replies")
+}
+
+// 定时跟进邮件序列
+model ScheduledFollowUp {
+  id          String    @id @default(cuid())
+  inquiryId   String?   @map("inquiry_id")
+  customerId  String?   @map("customer_id")
+  subject     String    @map("subject")
+  body        String    @map("body")
+  scheduledAt DateTime  @map("scheduled_at")
+  status      String    @default("pending") @map("status") // pending, sent, cancelled
+  sortOrder   Int       @default(0) @map("sort_order")
+  sentAt      DateTime? @map("sent_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  inquiry     Inquiry?  @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  customer    Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@map("scheduled_follow_ups")
 }

@@ -39,6 +39,9 @@ export default function InquiryDetailPage() {
   const [scheduledTime, setScheduledTime] = useState('');
   const [followUpEnabled, setFollowUpEnabled] = useState(false);
   const [followUpDays, setFollowUpDays] = useState('7');
+  const [scheduledFollowUps, setScheduledFollowUps] = useState<any[]>([]);
+  const [showFollowUpForm, setShowFollowUpForm] = useState(false);
+  const [newFollowUp, setNewFollowUp] = useState({ subject: '', body: '', scheduledAt: '' });
   const [customers, setCustomers] = useState<{ id: string; companyName: string }[]>([]);
 
   const fetchInquiry = async () => {
@@ -56,7 +59,15 @@ export default function InquiryDetailPage() {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchInquiry(); fetch('/api/customers?limit=200').then(r => r.json()).then(d => { if (d.success) setCustomers(d.data || []); }).catch(() => {}); }, [id]);
+  const fetchFollowUps = async () => {
+    try {
+      const res = await fetch(`/api/inquiries/${id}/follow-ups`);
+      const data = await res.json();
+      if (data.success) setScheduledFollowUps(data.data);
+    } catch {}
+  };
+
+  useEffect(() => { fetchInquiry(); fetchFollowUps(); fetch('/api/customers?limit=200').then(r => r.json()).then(d => { if (d.success) setCustomers(d.data || []); }).catch(() => {}); }, [id]);
 
   const handleSaveDraft = async () => {
     const htmlBody = editBody.includes('<') ? editBody : markdownToHtml(editBody);
@@ -83,6 +94,21 @@ export default function InquiryDetailPage() {
       const d = await res.json();
       if (d.success) { setEditSubject(d.data.aiDraftSubject); setEditBody(d.data.aiDraftBody); }
     }
+  };
+
+  const addFollowUp = async () => {
+    if (!newFollowUp.subject.trim() || !newFollowUp.body.trim() || !newFollowUp.scheduledAt) return alert('请填写完整');
+    await fetch(`/api/inquiries/${id}/follow-ups`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...newFollowUp, customerId: assignCustomerId || null }),
+    });
+    setShowFollowUpForm(false); setNewFollowUp({ subject: '', body: '', scheduledAt: '' }); fetchFollowUps();
+  };
+
+  const deleteFollowUp = async (followUpId: string) => {
+    if (!confirm('删除此定时邮件？')) return;
+    await fetch(`/api/inquiries/${id}/follow-ups/manage?id=${followUpId}`, { method: 'DELETE' });
+    fetchFollowUps();
   };
 
   const handleSend = async () => {
@@ -277,6 +303,56 @@ export default function InquiryDetailPage() {
               </div>
             </Card>
           )}
+
+          {/* 定时跟进邮件序列 */}
+          <Card>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-semibold flex items-center gap-2">⏰ 定时跟进序列 ({scheduledFollowUps.length})</h2>
+              <Button size="sm" variant="secondary" onClick={() => { setShowFollowUpForm(!showFollowUpForm); setNewFollowUp({ subject: '', body: '', scheduledAt: '' }); }}>
+                + 添加定时邮件
+              </Button>
+            </div>
+
+            {showFollowUpForm && (
+              <div className="mb-3 p-3 bg-amber-50 rounded-lg border border-amber-200 space-y-2">
+                <input type="text" placeholder="邮件主题" value={newFollowUp.subject} onChange={e => setNewFollowUp({...newFollowUp, subject: e.target.value})}
+                  className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm" />
+                <textarea rows={3} placeholder="邮件内容（Markdown）" value={newFollowUp.body} onChange={e => setNewFollowUp({...newFollowUp, body: e.target.value})}
+                  className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm" />
+                <div className="flex items-center gap-2">
+                  <input type="datetime-local" value={newFollowUp.scheduledAt} onChange={e => setNewFollowUp({...newFollowUp, scheduledAt: e.target.value})}
+                    className="px-3 py-2 border border-amber-300 rounded-lg text-sm flex-1" />
+                  <Button size="sm" onClick={addFollowUp}>保存</Button>
+                  <Button size="sm" variant="secondary" onClick={() => setShowFollowUpForm(false)}>取消</Button>
+                </div>
+              </div>
+            )}
+
+            {scheduledFollowUps.length === 0 ? (
+              <p className="text-sm text-gray-400">暂无定时邮件。可为本客户添加多方定时发送的跟进邮件。</p>
+            ) : (
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {scheduledFollowUps.map((f, i) => (
+                  <div key={f.id} className={`p-3 rounded-lg border ${f.status === 'sent' ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-medium text-gray-500">#{i + 1}</span>
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full ${f.status === 'sent' ? 'bg-green-200 text-green-700' : 'bg-amber-200 text-amber-700'}`}>
+                        {f.status === 'sent' ? '已发送' : '待发送'}
+                      </span>
+                    </div>
+                    <p className="text-sm font-medium text-gray-900 truncate">{f.subject}</p>
+                    <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{f.body}</p>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-xs text-amber-600">⏰ {new Date(f.scheduledAt).toLocaleString('zh-CN')}</span>
+                      {f.status !== 'sent' && (
+                        <button onClick={() => deleteFollowUp(f.id)} className="text-xs text-red-500 hover:underline">删除</button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
 
           {/* 已回复记录 */}
           {inquiry.replies?.length > 0 && (

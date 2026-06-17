@@ -61,6 +61,18 @@ async function main() {
       "sent_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`,
+    `CREATE TABLE IF NOT EXISTS "scheduled_follow_ups" (
+      "id" TEXT PRIMARY KEY,
+      "inquiry_id" TEXT,
+      "customer_id" TEXT,
+      "subject" TEXT NOT NULL,
+      "body" TEXT NOT NULL,
+      "scheduled_at" TIMESTAMP(3) NOT NULL,
+      "status" TEXT NOT NULL DEFAULT 'pending',
+      "sort_order" INTEGER NOT NULL DEFAULT 0,
+      "sent_at" TIMESTAMP(3),
+      "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
     `CREATE UNIQUE INDEX IF NOT EXISTS "inquiries_message_id_key" ON "inquiries"("message_id")`,
   ];
 
