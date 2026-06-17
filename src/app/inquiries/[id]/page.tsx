@@ -87,7 +87,7 @@ export default function InquiryDetailPage() {
   const langFlag: Record<string, string> = { zh: '中文', en: 'English', es: 'Español' };
 
   if (loading) return <div className="text-center py-8">加载中...</div>;
-  if (!inquiry) return <div className="text-center py-8 text-red-500">询价不存在</div>;
+  if (!inquiry) return <div className="text-center py-8 text-red-500">邮件不存在</div>;
 
   const isReplied = inquiry.status === 'replied';
 
@@ -224,7 +224,7 @@ export default function InquiryDetailPage() {
               <div><span className="text-gray-400">发件邮箱</span><p className="break-all">{inquiry.fromEmail}</p></div>
               <div><span className="text-gray-400">语言</span><p>{langFlag[inquiry.language || ''] || '未知'}</p></div>
               <div><span className="text-gray-400">状态</span><p className={`font-medium ${inquiry.status === 'replied' ? 'text-green-600' : 'text-blue-600'}`}>
-                {{new: '新询价', processing: 'AI处理中', reviewed: '待回复', replied: '已回复', archived: '已归档'}[inquiry.status]}</p></div>
+                {{new: '新邮件', processing: 'AI处理中', reviewed: '待回复', replied: '已回复', archived: '已归档'}[inquiry.status]}</p></div>
             </div>
           </Card>
         </div>

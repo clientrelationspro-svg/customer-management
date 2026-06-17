@@ -29,13 +29,13 @@ async function callAI(messages: { role: string; content: string }[]): Promise<st
   return data.choices?.[0]?.message?.content || '';
 }
 
-// 提取询价要点
+// 提取邮件要点
 export async function extractInquiryPoints(
   subject: string,
   body: string,
   language: string
 ): Promise<{ productInterested: string; quantity: string; deliveryRequired: string; summary: string }> {
-  const prompt = `你是一名外贸业务助手。请从以下客户询价邮件中提取关键信息。
+  const prompt = `你是一名外贸业务助手。请从以下客户邮件中提取关键信息。
 
 邮件主题: ${subject}
 邮件内容: ${body.slice(0, 3000)}
@@ -67,12 +67,12 @@ export async function generateReplyDraft(
   extractedPoints: { productInterested: string; quantity: string; deliveryRequired: string }
 ): Promise<{ subject: string; body: string }> {
   const langLabel = language === 'zh' ? '中文' : language === 'en' ? '英文' : '西班牙文';
-  const prompt = `你是一名资深外贸业务员。请根据客户询价邮件生成一封专业回复邮件。
+  const prompt = `你是一名资深外贸业务员。请根据客户邮件生成一封专业回复邮件。
 
 客户邮件主题: ${subject}
 客户邮件内容: ${body.slice(0, 3000)}
 客户背景: ${customerInfo || '暂无额外信息'}
-提取的询价要点:
+提取的邮件要点:
 - 产品: ${extractedPoints.productInterested || '待确认'}
 - 数量: ${extractedPoints.quantity || '待确认'}
 - 交期: ${extractedPoints.deliveryRequired || '待确认'}

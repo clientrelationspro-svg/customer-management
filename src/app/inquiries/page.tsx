@@ -87,14 +87,14 @@ export default function InquiriesPage() {
     finally { setSyncing(false); }
   };
 
-  const statusLabel: Record<string, string> = { new: '新询价', processing: 'AI处理中', reviewed: '待回复', replied: '已回复', archived: '已归档' };
+  const statusLabel: Record<string, string> = { new: '新邮件', processing: 'AI处理中', reviewed: '待回复', replied: '已回复', archived: '已归档' };
   const statusColor: Record<string, string> = { new: 'bg-blue-100 text-blue-700', processing: 'bg-purple-100 text-purple-700', reviewed: 'bg-yellow-100 text-yellow-700', replied: 'bg-green-100 text-green-700', archived: 'bg-gray-100 text-gray-500' };
   const langFlag: Record<string, string> = { zh: '🇨🇳', en: '🇺🇸', es: '🇪🇸' };
 
   return (
     <div>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">询价管理</h1>
+        <h1 className="text-2xl font-bold text-gray-900">邮件管理</h1>
         <div className="flex gap-2">
           <Button variant="secondary" size="sm" onClick={() => setShowConfig(!showConfig)}>
             <Settings className="w-4 h-4 mr-1" />邮箱配置 {showConfig ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
@@ -156,7 +156,7 @@ export default function InquiriesPage() {
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
             <option value="">全部状态</option>
-            <option value="new">新询价</option>
+            <option value="new">新邮件</option>
             <option value="processing">AI处理中</option>
             <option value="reviewed">待回复</option>
             <option value="replied">已回复</option>
@@ -170,8 +170,8 @@ export default function InquiriesPage() {
         <Card>
           <div className="text-center py-8 text-gray-500">
             <Mail className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-            <p>暂无询价</p>
-            <p className="text-sm mt-1">点击"拉取新邮件"同步邮箱中的询价</p>
+            <p>暂无邮件</p>
+            <p className="text-sm mt-1">点击"拉取新邮件"同步邮箱</p>
           </div>
         </Card>
       ) : (

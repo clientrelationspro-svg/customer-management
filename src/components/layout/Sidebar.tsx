@@ -22,7 +22,7 @@ const menuItems = [
   { icon: Home, label: '仪表盘', href: '/' },
   { icon: Users, label: '客户管理', href: '/customers' },
   { icon: Calendar, label: '客户开发', href: '/follow-ups' },
-  { icon: Mail, label: '询价管理', href: '/inquiries' },
+  { icon: Mail, label: '邮件管理', href: '/inquiries' },
   { icon: Target, label: 'AI客户分析', href: '/needs-analysis' },
   { icon: Package, label: '产品管理', href: '/products' },
   { icon: Truck, label: '供应商管理', href: '/suppliers' },

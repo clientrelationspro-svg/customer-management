@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { fetchUnreadEmails } from '@/lib/email/imap-client';
-import { isInquiryEmail } from '@/lib/email/inquiry-keywords';
+import { detectLanguage } from '@/lib/email/inquiry-keywords';
 import { extractInquiryPoints, generateReplyDraft } from '@/lib/ai-siliconflow';
 
 const prisma = new PrismaClient();
@@ -69,8 +69,8 @@ export async function POST(request: NextRequest) {
         const exists = await prisma.inquiry.findUnique({ where: { messageId: email.messageId } });
         if (exists) continue;
 
-        const { isInquiry, language, matchedKeywords } = isInquiryEmail(email.subject, email.body);
-        if (!isInquiry) continue;
+        // 检测语言（不再按关键词过滤，所有邮件都拉取）
+        const language = detectLanguage(email.subject, email.body);
 
         // 匹配客户
         const customer = await prisma.customer.findFirst({
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
           },
         });
 
-        // 创建询价记录
+        // 创建邮件记录
         const inquiry = await prisma.inquiry.create({
           data: {
             emailConfigId: config.id,
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
         data: { lastSyncAt: new Date() },
       });
 
-      return NextResponse.json({ success: true, message: `成功拉取 ${newCount} 条新询价`, created: newCount });
+      return NextResponse.json({ success: true, message: `成功拉取 ${newCount} 封新邮件`, created: newCount });
     }
 
     return NextResponse.json({ success: false, error: '不支持的操作' }, { status: 400 });
