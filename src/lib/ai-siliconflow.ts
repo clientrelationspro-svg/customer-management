@@ -58,19 +58,23 @@ export async function generateReplyDraft(
   language: string,
   customerInfo: string,
   extractedPoints: { productInterested: string; quantity: string; deliveryRequired: string },
-  customerContext: string  // 新增：客户历史互动 + 备注
+  customerContext: string  // 客户历史互动 / 或用户引导指令
 ): Promise<{ subject: string; body: string }> {
   const langLabel = language === 'zh' ? '中文' : language === 'en' ? '英文' : '西班牙文';
 
-  let contextSection = '';
-  if (customerContext) {
-    contextSection = `\n## 客户历史互动与背景（务必在回复中融合使用）\n${customerContext}`;
+  // 判断是用户引导指令还是客户上下文
+  const isUserGuided = customerContext && customerContext.length < 500 && !customerContext.includes('\n最近互动');
+  
+  let instructions = '';
+  if (isUserGuided) {
+    instructions = `\n## ⚠️ 用户指定回复要点（必须严格按照以下指令生成回复）\n${customerContext}\n`;
+  } else if (customerContext) {
+    instructions = `\n## 客户历史互动与背景（务必在回复中融合使用）\n${customerContext}\n`;
   }
 
   const prompt = `你是一名资深外贸业务员。请根据当前邮件和客户历史生成专业回复。
 
-客户档案: ${customerInfo || '未知客户'}${contextSection}
-
+客户档案: ${customerInfo || '未知客户'}${instructions}
 当前邮件主题: ${subject}
 当前邮件内容: ${body.slice(0, 3000)}
 
@@ -81,11 +85,9 @@ export async function generateReplyDraft(
 
 要求:
 1. 回复语言: ${langLabel}
-2. 融合客户历史信息，体现"记得他"
-3. 如客户曾仲裁/对价格敏感，措辞格外注意
-4. 如客户有偏好沟通方式，语气适配
-5. 如曾报过价，提及上次报价
-6. 留下进一步沟通的开放式结尾
+2. ${isUserGuided ? '严格遵照用户指定要点生成，不可偏离' : '融合客户历史信息，体现"记得他"'}
+3. 专业、友好，留下进一步沟通的开放式结尾
+4. 如客户曾仲裁/对价格敏感，措辞格外注意
 
 JSON格式返回：
 {"subject":"回复主题（保留Re:前缀）","body":"HTML格式正文"}`;

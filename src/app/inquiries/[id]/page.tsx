@@ -30,6 +30,8 @@ export default function InquiryDetailPage() {
   const [editSubject, setEditSubject] = useState('');
   const [editBody, setEditBody] = useState('');
   const [assignCustomerId, setAssignCustomerId] = useState('');
+  const [replyMode, setReplyMode] = useState<'auto' | 'guided'>('auto');
+  const [userNotes, setUserNotes] = useState('');
   const [customers, setCustomers] = useState<{ id: string; companyName: string }[]>([]);
 
   const fetchInquiry = async () => {
@@ -60,9 +62,13 @@ export default function InquiryDetailPage() {
 
   const handleRegenerate = async () => {
     setRegenerating(true);
+    const body: any = { regenerateDraft: true, customerId: assignCustomerId || null };
+    if (replyMode === 'guided' && userNotes.trim()) {
+      body.userNotes = userNotes.trim();
+    }
     const res = await fetch(`/api/inquiries/${id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ regenerateDraft: true, customerId: assignCustomerId || null }),
+      body: JSON.stringify(body),
     });
     setRegenerating(false);
     if (res.ok) {
@@ -144,20 +150,54 @@ export default function InquiryDetailPage() {
           {/* 回复编辑器 */}
           {!isReplied && (
             <Card>
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                 <h2 className="font-semibold flex items-center gap-2"><Send className="w-5 h-5 text-green-600" />回复邮件</h2>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="secondary" onClick={handleRegenerate} loading={regenerating}>
-                    <RefreshCw className="w-3 h-3 mr-1" />重新生成
+                  <Button size="sm" variant={replyMode === 'guided' ? 'secondary' : 'ghost'} onClick={() => setReplyMode('auto')}
+                    className={`text-xs ${replyMode === 'auto' ? 'font-bold bg-blue-50 text-blue-700' : ''}`}>
+                    🤖 AI自动生成
                   </Button>
-                  <Button size="sm" variant="secondary" onClick={handleSaveDraft}>
-                    <Save className="w-3 h-3 mr-1" />{saved ? '已保存' : '保存草稿'}
-                  </Button>
-                  <Button size="sm" onClick={handleSend} loading={sending}>
-                    <Send className="w-3 h-3 mr-1" />{sending ? '发送中...' : '发送'}
+                  <Button size="sm" variant={replyMode === 'auto' ? 'secondary' : 'ghost'} onClick={() => setReplyMode('guided')}
+                    className={`text-xs ${replyMode === 'guided' ? 'font-bold bg-amber-50 text-amber-700' : ''}`}>
+                    ✍️ 人工引导生成
                   </Button>
                 </div>
               </div>
+
+              {/* 人工引导：指令输入 */}
+              {replyMode === 'guided' && (
+                <div className="mb-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                  <label className="text-xs font-medium text-amber-700 mb-1 block">💡 输入你的回复要点（AI 将据此生成邮件）</label>
+                  <textarea
+                    value={userNotes}
+                    onChange={e => setUserNotes(e.target.value)}
+                    rows={3}
+                    placeholder="如：报CIF价$820/吨，强调ISO认证，询问是否需要样品，提醒库存有限..."
+                    className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm resize-y"
+                  />
+                  <div className="flex justify-between items-center mt-2">
+                    <span className="text-xs text-amber-500">AI 会结合客户档案和你的要点生成回复</span>
+                    <Button size="sm" onClick={handleRegenerate} loading={regenerating}>
+                      <RefreshCw className="w-3 h-3 mr-1" />生成回复
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 mb-3">
+                {replyMode === 'auto' && (
+                  <Button size="sm" variant="secondary" onClick={handleRegenerate} loading={regenerating}>
+                    <RefreshCw className="w-3 h-3 mr-1" />重新生成
+                  </Button>
+                )}
+                <Button size="sm" variant="secondary" onClick={handleSaveDraft}>
+                  <Save className="w-3 h-3 mr-1" />{saved ? '已保存' : '保存草稿'}
+                </Button>
+                <Button size="sm" onClick={handleSend} loading={sending}>
+                  <Send className="w-3 h-3 mr-1" />{sending ? '发送中...' : '发送'}
+                </Button>
+              </div>
+
               <div className="space-y-3">
                 <input type="text" value={editSubject} onChange={e => setEditSubject(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium" placeholder="回复主题" />

@@ -27,7 +27,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const body = await request.json();
-    const { action, customerId, finalSubject, finalBody, regenerateDraft } = body;
+    const { action, customerId, finalSubject, finalBody, regenerateDraft, userNotes } = body;
 
     const inquiry = await prisma.inquiry.findUnique({ where: { id: params.id } });
     if (!inquiry) return NextResponse.json({ error: '询价不存在' }, { status: 404 });
@@ -42,7 +42,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       const draft = await generateReplyDraft(
         inquiry.subject, inquiry.body, inquiry.language || 'en', customerInfo,
         { productInterested: inquiry.productInterested || '', quantity: inquiry.quantity || '', deliveryRequired: inquiry.deliveryRequired || '' },
-        ''
+        userNotes || ''
       );
 
       await prisma.inquiry.update({
