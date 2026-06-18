@@ -210,7 +210,7 @@ function SettingsContent() {
                     method: 'PATCH', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ businessRole: role }),
                   });
-                  loadData();
+                  loadCurrentUser();
                   setSuccess('业务角色已更新');
                   setTimeout(() => setSuccess(''), 2000);
                 } catch { setError('更新失败'); }
