@@ -185,81 +185,93 @@ export default function InquiriesPage() {
           </div>
         </Card>
       ) : (
-        <div className="space-y-3">
-          {/* 按客户分组 */}
-          {(function() {
-            const grouped: Record<string, Inquiry[]> = {};
-            inquiries.forEach(i => { const k = i.customer?.id || i.fromEmail; (grouped[k] = grouped[k] || []).push(i); });
-            return Object.entries(grouped).map(([key, emails]) => {
-              const first = emails[0];
-              const customerName = first.customer?.companyName || first.fromName || first.fromEmail;
-              const isOpen = expanded.has(key);
-              const ourCount = emails.filter(e => e.status === 'replied').length;
-              const theirCount = emails.filter(e => e.status !== 'replied').length;
-
-              return (
-                <div key={key} className="bg-white rounded-lg border border-gray-100 hover:border-gray-200 transition-all overflow-hidden">
-                  {/* 摘要卡片 */}
-                  <div onClick={() => setExpanded(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; })}
-                    className="p-3 cursor-pointer flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium text-sm text-gray-900 truncate">{customerName}</span>
-                        {first.customer?.id && <span className="text-xs bg-green-50 text-green-600 px-1.5 py-0.5 rounded">已关联</span>}
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
-                        <span>共 {emails.length} 封邮件</span>
-                        <span className="text-blue-500">📤 {ourCount} 封我方</span>
-                        <span className="text-gray-400">📥 {theirCount} 封对方</span>
-                        <span className="text-gray-400">{new Date(emails[emails.length - 1].createdAt).toLocaleDateString('zh-CN')}</span>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-0.5 truncate">最新: {first.subject}</p>
-                    </div>
-                    <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
-                      <button onClick={() => router.push(`/inquiries/${first.id}`)} className="p-1 text-gray-400 hover:text-blue-600 rounded" title="查看"><Eye className="w-4 h-4" /></button>
-                      {isOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
-                    </div>
-                  </div>
-
-                  {/* 展开：聊天式对话时间线 */}
-                  {isOpen && (
-                    <div className="border-t border-gray-100 px-3 py-2 bg-gray-50">
-                      <div className="space-y-2 max-h-[350px] overflow-y-auto">
-                        {emails.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()).map(e => {
-                          const isOur = e.status === 'replied';
-                          const direction = isOur ? 'justify-end' : 'justify-start';
-                          const bubbleStyle = isOur ? 'bg-blue-100 text-blue-900' : 'bg-gray-100 text-gray-700';
-                          const label = isOur ? '📤 我方发送' : '📥 客户来件';
-                          return (
-                            <div key={e.id} className={`flex ${direction}`}>
-                              <div className={`max-w-[85%] rounded-lg px-3 py-2 text-xs cursor-pointer hover:opacity-90 transition-opacity ${bubbleStyle}`}
-                                onClick={() => router.push(`/inquiries/${e.id}`)}>
-                                <div className="flex items-center gap-1 mb-0.5">
-                                  <span className="font-medium truncate">{e.subject}</span>
-                                  {isOur && <span className="text-[10px] bg-green-200 text-green-700 px-1 rounded">✅ 已回复</span>}
-                                </div>
-                                <p className="line-clamp-2 opacity-70">{e.aiSummary || e.body?.slice(0, 100)}</p>
-                                <div className="flex items-center gap-2 mt-1 text-[10px] opacity-50">
-                                  <span>{label}</span>
-                                  <span>{new Date(e.createdAt).toLocaleString('zh-CN', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })}</span>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <button onClick={() => router.push(`/inquiries/${first.id}`)}
-                        className="w-full text-center text-xs text-blue-600 hover:underline mt-2 py-1">
-                        查看全部 {emails.length} 封对话
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            });
-          })()}
-        </div>
+        <ChatGroupList
+          inquiries={inquiries}
+          expanded={expanded}
+          onToggle={setExpanded}
+          onView={(id) => router.push(`/inquiries/${id}`)}
+        />
       )}
+    </div>
+  );
+}
+
+// 聊天分组列表组件
+function ChatGroupList({ inquiries, expanded, onToggle, onView }: {
+  inquiries: Inquiry[];
+  expanded: Set<string>;
+  onToggle: (setter: (prev: Set<string>) => Set<string>) => void;
+  onView: (id: string) => void;
+}) {
+  const grouped: Record<string, Inquiry[]> = {};
+  inquiries.forEach(i => {
+    const k = i.customer?.id || i.fromEmail;
+    (grouped[k] = grouped[k] || []).push(i);
+  });
+
+  return (
+    <div className="space-y-3">
+      {Object.entries(grouped).map(([key, emails]) => {
+        const first = emails[0];
+        const customerName = first.customer?.companyName || first.fromName || first.fromEmail;
+        const isOpen = expanded.has(key);
+        const ourCount = emails.filter(e => e.status === 'replied').length;
+        const theirCount = emails.filter(e => e.status !== 'replied').length;
+
+        return (
+          <div key={key} className="bg-white rounded-lg border border-gray-100 hover:border-gray-200 transition-all overflow-hidden">
+            <div onClick={() => onToggle(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; })}
+              className="p-3 cursor-pointer flex items-center justify-between">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-medium text-sm text-gray-900 truncate">{customerName}</span>
+                  {first.customer?.id && <span className="text-xs bg-green-50 text-green-600 px-1.5 py-0.5 rounded">已关联</span>}
+                </div>
+                <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
+                  <span>共 {emails.length} 封</span>
+                  <span className="text-blue-500">📤 {ourCount}</span>
+                  <span className="text-gray-400">📥 {theirCount}</span>
+                  <span>{new Date(emails[emails.length - 1].createdAt).toLocaleDateString('zh-CN')}</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-0.5 truncate">最新: {first.subject}</p>
+              </div>
+              <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                <button onClick={() => onView(first.id)} className="p-1 text-gray-400 hover:text-blue-600 rounded"><Eye className="w-4 h-4" /></button>
+                {isOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+              </div>
+            </div>
+            {isOpen && (
+              <div className="border-t border-gray-100 px-3 py-2 bg-gray-50">
+                <div className="space-y-2 max-h-[350px] overflow-y-auto">
+                  {emails.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()).map(e => {
+                    const isOur = e.status === 'replied';
+                    return (
+                      <div key={e.id} className={`flex ${isOur ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[85%] rounded-lg px-3 py-2 text-xs cursor-pointer ${isOur ? 'bg-blue-100 text-blue-900' : 'bg-gray-100 text-gray-700'}`}
+                          onClick={() => onView(e.id)}>
+                          <div className="flex items-center gap-1 mb-0.5">
+                            <span className="font-medium truncate">{e.subject}</span>
+                            {isOur && <span className="text-[10px] bg-green-200 text-green-700 px-1 rounded">已回复</span>}
+                          </div>
+                          <p className="line-clamp-2 opacity-70">{e.aiSummary || e.body?.slice(0, 100)}</p>
+                          <div className="flex items-center gap-2 mt-1 text-[10px] opacity-50">
+                            <span>{isOur ? '我方发送' : '客户来件'}</span>
+                            <span>{new Date(e.createdAt).toLocaleString('zh-CN', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <button onClick={() => onView(first.id)}
+                  className="w-full text-center text-xs text-blue-600 hover:underline mt-2 py-1">
+                  查看全部 {emails.length} 封对话
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
