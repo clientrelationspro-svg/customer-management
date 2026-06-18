@@ -245,18 +245,21 @@ function ChatGroupList({ inquiries, expanded, onToggle, onView }: {
                 <div className="space-y-2 max-h-[350px] overflow-y-auto">
                   {emails.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()).map(e => {
                     const isOur = e.status === 'replied';
+                    const align = isOur ? 'justify-end' : 'justify-start';
+                    const bg = isOur ? 'bg-blue-100 text-blue-900' : 'bg-gray-100 text-gray-700';
+                    const label = isOur ? '我方发送' : '客户来件';
+                    const time = new Date(e.createdAt).toLocaleString('zh-CN', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
                     return (
-                      <div key={e.id} className={`flex ${isOur ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[85%] rounded-lg px-3 py-2 text-xs cursor-pointer ${isOur ? 'bg-blue-100 text-blue-900' : 'bg-gray-100 text-gray-700'}`}
-                          onClick={() => onView(e.id)}>
+                      <div key={e.id} className={`flex ${align}`}>
+                        <div className={`max-w-[85%] rounded-lg px-3 py-2 text-xs cursor-pointer ${bg}`} onClick={() => onView(e.id)}>
                           <div className="flex items-center gap-1 mb-0.5">
                             <span className="font-medium truncate">{e.subject}</span>
-                            {isOur && <span className="text-[10px] bg-green-200 text-green-700 px-1 rounded">已回复</span>}
+                            {isOur ? <span className="text-[10px] bg-green-200 text-green-700 px-1 rounded">已回复</span> : null}
                           </div>
                           <p className="line-clamp-2 opacity-70">{e.aiSummary || e.body?.slice(0, 100)}</p>
                           <div className="flex items-center gap-2 mt-1 text-[10px] opacity-50">
-                            <span>{isOur ? '我方发送' : '客户来件'}</span>
-                            <span>{new Date(e.createdAt).toLocaleString('zh-CN', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })}</span>
+                            <span>{label}</span>
+                            <span>{time}</span>
                           </div>
                         </div>
                       </div>
