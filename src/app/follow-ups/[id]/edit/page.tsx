@@ -3,7 +3,7 @@
 import { Suspense } from 'react';
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Save, Trash2, Calendar, AlertCircle, Sparkles, Copy, Upload, Download, CheckCircle, X, Send, ChevronDown, ChevronUp, RotateCcw, FileText } from 'lucide-react';
+import { ArrowLeft, Save, Trash2, Calendar, AlertCircle, Sparkles, Copy, Upload, Download, CheckCircle, X, Send, ChevronDown, ChevronUp, RotateCcw, FileText, Mail, BookOpen, Plus, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ConfirmModal } from '@/components/ui/Modal';
@@ -772,6 +772,49 @@ content: |
           </div>
         </div>
       </form>
+
+      {/* 作战仪表盘：客户备注 + 开发方案 + 客户回复 + 待办 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6">
+        {/* 📝 客户备注 */}
+        <Card>
+          <h3 className="font-semibold text-sm mb-2 flex items-center gap-1.5">
+            <FileText className="w-4 h-4 text-amber-600" />客户备注
+          </h3>
+          {formData.customerId && (
+            <CustomerNotesPanel customerId={formData.customerId} />
+          )}
+        </Card>
+
+        {/* 📋 开发方案 */}
+        <Card>
+          <h3 className="font-semibold text-sm mb-2 flex items-center gap-1.5">
+            📋 开发方案
+          </h3>
+          {formData.customerId && (
+            <DevelopmentPlanPanel customerId={formData.customerId} />
+          )}
+        </Card>
+
+        {/* 📧 客户回复 */}
+        <Card>
+          <h3 className="font-semibold text-sm mb-2 flex items-center gap-1.5">
+            <Mail className="w-4 h-4 text-blue-600" />客户回复
+          </h3>
+          {formData.customerId && (
+            <CustomerRepliesPanel customerId={formData.customerId} />
+          )}
+        </Card>
+
+        {/* ✅ 待办事项 */}
+        <Card>
+          <h3 className="font-semibold text-sm mb-2 flex items-center gap-1.5">
+            <CheckCircle className="w-4 h-4 text-green-600" />待办事项
+          </h3>
+          {formData.customerId && (
+            <TodoPanel customerId={formData.customerId} />
+          )}
+        </Card>
+      </div>
       
       {/* AI话术助手 */}
       <div className="mt-6">
@@ -1074,5 +1117,151 @@ export default function EditFollowUpPage() {
     <Suspense fallback={<div className="text-center py-8">加载中...</div>}>
       <EditFollowUpPageContent />
     </Suspense>
+  );
+}
+
+// ===== 面板组件 =====
+
+// 📝 客户备注面板
+function CustomerNotesPanel({ customerId }: { customerId: string }) {
+  const [notes, setNotes] = useState('');
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    fetch(`/api/customers/${customerId}`).then(r => r.json()).then(d => {
+      if (d.success) setNotes(d.data.notes || '');
+    }).finally(() => setLoading(false));
+  }, [customerId]);
+  if (loading) return <p className="text-xs text-gray-400">加载中...</p>;
+  if (!notes) return <p className="text-xs text-gray-400">暂无备注</p>;
+  return (
+    <div className="text-xs text-gray-600 leading-relaxed max-h-[200px] overflow-y-auto prose prose-xs"
+      dangerouslySetInnerHTML={{ __html: notes }} />
+  );
+}
+
+// 📋 开发方案面板
+function DevelopmentPlanPanel({ customerId }: { customerId: string }) {
+  const [plan, setPlan] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [steps, setSteps] = useState<{ text: string; done: boolean }[]>([]);
+  const [goal, setGoal] = useState('');
+  const [newStep, setNewStep] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { loadPlan(); }, [customerId]);
+
+  const loadPlan = async () => {
+    try {
+      const r = await fetch(`/api/development-plans?customerId=${customerId}`);
+      const d = await r.json();
+      if (d.success && d.data) {
+        setPlan(d.data);
+        setGoal(d.data.goal || '');
+        setSteps(JSON.parse(d.data.steps || '[]'));
+      }
+    } catch {} finally { setLoading(false); }
+  };
+
+  const savePlan = async () => {
+    setSaving(true);
+    await fetch('/api/development-plans', {
+      method: (plan ? 'PATCH' : 'POST'), headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ customerId, goal, steps: JSON.stringify(steps), id: plan?.id }),
+    });
+    setSaving(false); loadPlan();
+  };
+
+  const toggleStep = (i: number) => { const s = [...steps]; s[i].done = !s[i].done; setSteps(s); };
+  const addStep = () => { if (newStep.trim()) { setSteps([...steps, { text: newStep.trim(), done: false }]); setNewStep(''); } };
+  const removeStep = (i: number) => { setSteps(steps.filter((_, j) => j !== i)); };
+
+  if (loading) return <p className="text-xs text-gray-400">加载中...</p>;
+
+  return (
+    <div className="space-y-2">
+      <input value={goal} onChange={e => setGoal(e.target.value)} placeholder="开发目标（如：转化为长期供应商）"
+        className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs" />
+      <div className="space-y-1 max-h-[150px] overflow-y-auto">
+        {steps.map((s, i) => (
+          <label key={i} className="flex items-center gap-1.5 text-xs cursor-pointer">
+            <input type="checkbox" checked={s.done} onChange={() => toggleStep(i)} className="rounded" />
+            <span className={s.done ? 'line-through text-gray-400' : 'text-gray-700'}>{s.text}</span>
+            <button onClick={() => removeStep(i)} className="ml-auto text-gray-300 hover:text-red-500"><X className="w-3 h-3" /></button>
+          </label>
+        ))}
+      </div>
+      <div className="flex gap-1">
+        <input value={newStep} onChange={e => setNewStep(e.target.value)} onKeyDown={e => e.key === 'Enter' && addStep()}
+          placeholder="新增步骤..." className="flex-1 px-2 py-1 border border-gray-200 rounded text-xs" />
+        <button onClick={addStep} className="px-2 py-1 bg-gray-100 rounded text-xs hover:bg-gray-200"><Plus className="w-3 h-3" /></button>
+      </div>
+      <Button size="sm" variant="secondary" className="w-full text-xs" onClick={savePlan} loading={saving}>
+        <Save className="w-3 h-3 mr-1" />{plan ? '更新方案' : '保存方案'}
+      </Button>
+    </div>
+  );
+}
+
+// 📧 客户回复面板
+function CustomerRepliesPanel({ customerId }: { customerId: string }) {
+  const [replies, setReplies] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    fetch(`/api/inquiries?limit=20`).then(r => r.json()).then(d => {
+      if (d.success) setReplies(d.data.filter((e: any) => e.customerId === customerId).slice(0, 5));
+    }).finally(() => setLoading(false));
+  }, [customerId]);
+  if (loading) return <p className="text-xs text-gray-400">加载中...</p>;
+  if (!replies.length) return <p className="text-xs text-gray-400">暂无邮件往来</p>;
+  return (
+    <div className="space-y-2 max-h-[200px] overflow-y-auto">
+      {replies.map(e => (
+        <div key={e.id} className="text-xs border-l-2 border-blue-100 pl-2">
+          <p className="font-medium text-gray-700 truncate">{e.subject}</p>
+          <p className="text-gray-400">{new Date(e.createdAt).toLocaleDateString('zh-CN')} · {e.status === 'replied' ? '已回复' : e.status}</p>
+          {e.aiSummary && <p className="text-gray-500 mt-0.5 line-clamp-1">{e.aiSummary}</p>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ✅ 待办面板
+function TodoPanel({ customerId }: { customerId: string }) {
+  const [todos, setTodos] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    Promise.all([
+      fetch(`/api/development-plans?customerId=${customerId}`),
+      fetch(`/api/follow-ups?customerId=${customerId}&limit=10`),
+    ]).then(async ([pRes, fRes]) => {
+      const p = await pRes.json();
+      const f = await fRes.json();
+      const items: any[] = [];
+      if (p.success && p.data) {
+        const steps = JSON.parse(p.data.steps || '[]');
+        steps.filter((s: any) => !s.done).forEach((s: any) => items.push({ type: 'plan', text: s.text }));
+      }
+      if (f.success && f.data) {
+        f.data.filter((fu: any) => !fu.isCompleted && fu.nextAction).slice(0, 5).forEach((fu: any) => items.push({ type: 'followup', text: fu.nextAction, date: fu.nextFollowUpDate }));
+      }
+      setTodos(items);
+    }).finally(() => setLoading(false));
+  }, [customerId]);
+  if (loading) return <p className="text-xs text-gray-400">加载中...</p>;
+  if (!todos.length) return <p className="text-xs text-green-600">暂无待办 ✓</p>;
+  return (
+    <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
+      {todos.map((t, i) => (
+        <div key={i} className="flex items-center gap-1.5 text-xs text-gray-700">
+          <input type="checkbox" className="rounded flex-shrink-0" />
+          <span className={t.type === 'plan' ? 'text-amber-600' : 'text-blue-600'}>
+            {t.type === 'plan' ? '📋' : '📅'}
+          </span>
+          <span>{t.text}</span>
+          {t.date && <span className="text-gray-400 ml-auto text-[10px]">{new Date(t.date).toLocaleDateString('zh-CN')}</span>}
+        </div>
+      ))}
+    </div>
   );
 }
