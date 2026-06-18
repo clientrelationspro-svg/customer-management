@@ -37,6 +37,13 @@ async function main() {
       "status" TEXT NOT NULL DEFAULT 'pending', "sort_order" INTEGER NOT NULL DEFAULT 0,
       "sent_at" TIMESTAMP(3), "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`],
+    ['development_plans', `CREATE TABLE IF NOT EXISTS "development_plans" (
+      "id" TEXT PRIMARY KEY, "customer_id" TEXT NOT NULL UNIQUE,
+      "goal" TEXT NOT NULL, "stage" TEXT, "steps" TEXT NOT NULL DEFAULT '[]',
+      "notes" TEXT, "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updated_at" TIMESTAMP(3) NOT NULL
+    )`],
+    ['alter_users', `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "business_role" TEXT DEFAULT 'supplier'`],
   ];
 
   for (const [name, sql] of tables) {
@@ -58,6 +65,12 @@ async function main() {
     `ALTER TABLE "inquiries" ADD COLUMN IF NOT EXISTS "follow_up_interval" INTEGER`,
     `ALTER TABLE "inquiries" ADD COLUMN IF NOT EXISTS "follow_up_until" TIMESTAMP(3)`,
     `ALTER TABLE "inquiries" ADD COLUMN IF NOT EXISTS "next_follow_up_at" TIMESTAMP(3)`,
+    `ALTER TABLE "follow_ups" ADD COLUMN IF NOT EXISTS "stage" TEXT`,
+    `ALTER TABLE "follow_ups" ADD COLUMN IF NOT EXISTS "is_completed" BOOLEAN DEFAULT false`,
+    `ALTER TABLE "follow_ups" ADD COLUMN IF NOT EXISTS "reply_sentiment" TEXT`,
+    `ALTER TABLE "follow_ups" ADD COLUMN IF NOT EXISTS "reply_key_points" TEXT`,
+    `ALTER TABLE "follow_ups" ADD COLUMN IF NOT EXISTS "reply_ai_suggestion" TEXT`,
+    `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "business_role" TEXT DEFAULT 'supplier'`,
   ];
   for (const sql of alters) {
     try { await prisma.$executeRawUnsafe(sql); console.log('  ✓ alter'); } catch {}
