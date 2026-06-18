@@ -1,542 +1,296 @@
 'use client';
 
-import { Suspense } from 'react';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  Plus, 
-  Search, 
-  Calendar,
-  Clock,
-  AlertCircle,
-  CheckCircle,
-  Archive,
-  Phone,
-  Mail,
-  MessageSquare,
-  Download,
-} from 'lucide-react';
-
-// WhatsApp 直达链接 - 格式化号码
-function getWhatsAppUrl(whatsapp: string): string {
-  // 去除非数字字符，确保包含国家代码
-  let number = whatsapp.replace(/\D/g, '');
-  // 如果以00开头，替换为不带前缀
-  if (number.startsWith('00')) number = number.slice(2);
-  // 确保有国家代码（不含+号）
-  return `https://wa.me/${number}`;
-}
+import { Plus, Search, ChevronDown, ChevronUp, CheckCircle, Calendar, Clock, AlertCircle, Mail, MessageCircle, Phone, Edit3, Trash2, Building2, MapPin, Send, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ConfirmModal } from '@/components/ui/Modal';
-import { formatDate, isOverdue } from '@/lib/utils';
+import { isOverdue } from '@/lib/utils';
+import MarkdownEditor, { markdownToHtml } from '@/components/ui/MarkdownEditor';
 
 interface FollowUp {
-  id: string;
-  customerId: string;
-  contactId?: string;
-  phone?: string;
-  whatsapp?: string;
-  email?: string;
-  followUpMatters: string;
-  contactMethod: string;
-  nextAction?: string;
-  priority: string;
-  status: string;
-  lastFollowUpDate: string;
-  nextFollowUpDate?: string;
-  remarks?: string;
-  createdAt: string;
-  updatedAt: string;
-  customer: { id: string; companyName: string };
-  contact?: { id: string; name: string; phone?: string; email?: string; whatsapp?: string };
+  id: string; customerId: string; contactId?: string; phone?: string; whatsapp?: string; email?: string;
+  followUpMatters: string; contactMethod: string; nextAction?: string; priority: string; status: string;
+  lastFollowUpDate: string; nextFollowUpDate?: string; remarks?: string; stage?: string;
+  isCompleted: boolean; replySentiment?: string; replyKeyPoints?: string;
+  createdAt: string; updatedAt: string;
+  customer: { id: string; companyName: string; country?: string; level?: string; industry?: string; email?: string };
+  contact?: { id: string; name: string; position?: string; phone?: string; email?: string; whatsapp?: string };
 }
 
-function FollowUpsPageContent() {
+export default function FollowUpsPage() {
   const router = useRouter();
   const [followUps, setFollowUps] = useState<FollowUp[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [priorityFilter, setPriorityFilter] = useState('');
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [selectedFollowUp, setSelectedFollowUp] = useState<FollowUp | null>(null);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [stats, setStats] = useState({ active: 0, monthTotal: 0, monthEmails: 0 });
 
-  const fetchFollowUps = useCallback(async () => {
+  // 分组折叠
+  const [groups, setGroups] = useState<Record<string, boolean>>({ overdue: false, today: false, upcoming: false, other: false });
+
+  // 邮箱弹窗
+  const [emailModal, setEmailModal] = useState<{ open: boolean; followUp: FollowUp | null }>({ open: false, followUp: null });
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailBody, setEmailBody] = useState('');
+  const [sending, setSending] = useState(false);
+
+  // 删除确认
+  const [deleteTarget, setDeleteTarget] = useState<FollowUp | null>(null);
+
+  // 日期编辑
+  const [editingDate, setEditingDate] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (statusFilter) params.set('status', statusFilter);
-      if (priorityFilter) params.set('priority', priorityFilter);
-      params.set('page', page.toString());
-      params.set('limit', '10');
-
-      const res = await fetch(`/api/follow-ups?${params}`);
+      const res = await fetch('/api/follow-ups?limit=200');
       const data = await res.json();
-      
-      setFollowUps(data.data || []);
-      setTotalPages(data.pagination?.totalPages || 1);
-    } catch (error) {
-      console.error('Error fetching follow-ups:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [statusFilter, priorityFilter, page]);
+      if (data.success) {
+        const list = data.data || [];
+        setFollowUps(list);
+        // 统计
+        setStats({
+          active: list.filter((f: FollowUp) => f.status === 'in_progress').length,
+          monthTotal: list.filter((f: FollowUp) => new Date(f.createdAt).getMonth() === new Date().getMonth()).length,
+          monthEmails: list.filter((f: FollowUp) => f.contactMethod === 'email' && new Date(f.createdAt).getMonth() === new Date().getMonth()).length,
+        });
+      }
+    } catch {}
+    finally { setLoading(false); }
+  }, []);
 
-  useEffect(() => {
-    fetchFollowUps();
-  }, [fetchFollowUps]);
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const handleComplete = async (id: string) => {
+    await fetch(`/api/follow-ups/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'completed', isCompleted: true }) });
+    fetchData();
+  };
+
+  const handleUpdateDate = async (id: string, date: string) => {
+    await fetch(`/api/follow-ups/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nextFollowUpDate: date }) });
+    setEditingDate(null);
+    fetchData();
+  };
 
   const handleDelete = async () => {
-    if (!selectedFollowUp) return;
-    
+    if (!deleteTarget) return;
+    await fetch(`/api/follow-ups/${deleteTarget.id}`, { method: 'DELETE' });
+    setDeleteTarget(null);
+    fetchData();
+  };
+
+  // 发邮件
+  const openEmail = (f: FollowUp) => {
+    setEmailModal({ open: true, followUp: f });
+    setEmailSubject(f.nextAction ? `Re: ${f.nextAction.slice(0, 50)}` : '');
+    setEmailBody('');
+  };
+
+  const sendEmail = async () => {
+    if (!emailModal.followUp) return;
+    setSending(true);
     try {
-      const res = await fetch(`/api/follow-ups/${selectedFollowUp.id}`, {
-        method: 'DELETE',
+      const htmlBody = emailBody.includes('<') ? emailBody : markdownToHtml(emailBody);
+      const res = await fetch(`/api/email-send`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: emailModal.followUp.email || emailModal.followUp.customer?.email, subject: emailSubject, body: htmlBody, customerId: emailModal.followUp.customerId }),
       });
-      
-      if (res.ok) {
-        fetchFollowUps();
-        setIsDeleteModalOpen(false);
-        setSelectedFollowUp(null);
-      }
-    } catch (error) {
-      console.error('Error deleting follow-up:', error);
-    }
+      if (res.ok) { alert('邮件已发送'); setEmailModal({ open: false, followUp: null }); fetchData(); }
+      else alert('发送失败');
+    } catch {}
+    finally { setSending(false); }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'in_progress': return <Clock className="w-4 h-4 text-blue-500" />;
-      case 'completed': return <CheckCircle className="w-4 h-4 text-green-500" />;
-      case 'archived': return <Archive className="w-4 h-4 text-gray-500" />;
-      default: return null;
-    }
-  };
+  // 分组排序
+  const today = new Date().toISOString().split('T')[0];
+  const overdue: FollowUp[] = [];
+  const todayList: FollowUp[] = [];
+  const upcoming: FollowUp[] = [];
+  const other: FollowUp[] = [];
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'in_progress': return '进行中';
-      case 'completed': return '已完成';
-      case 'archived': return '已归档';
-      default: return status;
-    }
-  };
+  const filtered = followUps.filter(f =>
+    f.customer?.companyName?.toLowerCase().includes(search.toLowerCase()) ||
+    f.customer?.country?.toLowerCase().includes(search.toLowerCase()) ||
+    f.nextAction?.toLowerCase().includes(search.toLowerCase())
+  );
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'text-red-600 bg-red-50';
-      case 'medium': return 'text-yellow-600 bg-yellow-50';
-      case 'low': return 'text-green-600 bg-green-50';
-      default: return 'text-gray-600 bg-gray-50';
-    }
-  };
+  filtered.forEach(f => {
+    const nd = f.nextFollowUpDate?.split('T')[0];
+    if (nd && isOverdue(f.nextFollowUpDate!) && !f.isCompleted) overdue.push(f);
+    else if (nd === today && !f.isCompleted) todayList.push(f);
+    else if (nd && nd > today && !f.isCompleted) upcoming.push(f);
+    else other.push(f);
+  });
 
-  const getPriorityText = (priority: string) => {
-    switch (priority) {
-      case 'high': return '高';
-      case 'medium': return '中';
-      case 'low': return '低';
-      default: return priority;
-    }
-  };
+  // A/B级优先排序
+  [overdue, todayList, upcoming, other].forEach(g => g.sort((a, b) => {
+    const la = a.customer?.level || 'Z';
+    const lb = b.customer?.level || 'Z';
+    return la.localeCompare(lb);
+  }));
 
-  const getFollowUpMattersText = (matters: string) => {
-    const matterMap: { [key: string]: string } = {
-      '开发': '开发',
-      '报价': '报价',
-      '样品': '样品',
-      '谈判': '谈判',
-      '成交': '成交',
-      '其他': '其他',
-    };
-    return matters.split(',').map(m => matterMap[m] || m).join(', ');
-  };
+  const priorityColor = (p: string) => p === 'high' ? 'text-red-600 bg-red-50' : p === 'medium' ? 'text-yellow-600 bg-yellow-50' : 'text-green-600 bg-green-50';
+  const priorityText = (p: string) => p === 'high' ? '高' : p === 'medium' ? '中' : '低';
+  const levelColor = (l: string) => ({ A: 'bg-red-100 text-red-700', B: 'bg-orange-100 text-orange-700', C: 'bg-blue-100 text-blue-700', D: 'bg-green-100 text-green-700', E: 'bg-gray-100 text-gray-500' }[l] || 'bg-gray-100');
+  const sentimentIcon = (s?: string) => s === 'positive' ? '😊' : s === 'negative' ? '😡' : s === 'neutral' ? '😐' : '';
 
-  const getContactMethodText = (method: string) => {
-    const methodMap: { [key: string]: string } = {
-      'phone': '电话',
-      'email': '邮件',
-      'whatsapp': 'WhatsApp',
-      'wechat': '微信',
-      'other': '其他',
-    };
-    return methodMap[method] || method;
-  };
+  const GroupSection = ({ title, icon: Icon, color, list, groupKey }: any) => {
+    if (list.length === 0) return null;
+    const isOpen = groups[groupKey];
+    return (
+      <div className="mb-4">
+        <button onClick={() => setGroups(g => ({ ...g, [groupKey]: !isOpen }))}
+          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg font-medium text-sm ${color} hover:opacity-90 transition-opacity`}>
+          <Icon className="w-4 h-4" /> {title} ({list.length})
+          {isOpen ? <ChevronUp className="w-4 h-4 ml-auto" /> : <ChevronDown className="w-4 h-4 ml-auto" />}
+        </button>
+        {isOpen && (
+          <div className="space-y-2 mt-2">
+            {list.map((f: FollowUp) => (
+              <div key={f.id} className="bg-white rounded-lg border border-gray-100 hover:border-gray-200 hover:shadow-sm transition-all p-3 cursor-pointer"
+                onClick={() => router.push(`/follow-ups/${f.id}/edit`)}>
+                {/* 头部 */}
+                <div className="flex items-start justify-between mb-1.5">
+                  <div className="flex items-center gap-2 flex-wrap min-w-0">
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${levelColor(f.customer?.level || 'C')}`}>{f.customer?.level || 'C'}</span>
+                    <span className="font-medium text-sm text-gray-900 truncate">{f.customer?.companyName}</span>
+                    {f.customer?.country && <span className="text-xs text-gray-400">{f.customer.country}</span>}
+                    {f.stage && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600">{f.stage}</span>}
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${priorityColor(f.priority)}`}>{priorityText(f.priority)}</span>
+                  </div>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0 ${f.isCompleted ? 'bg-green-100 text-green-700' : f.status === 'archived' ? 'bg-gray-100 text-gray-500' : 'bg-blue-100 text-blue-700'}`}>
+                    {f.isCompleted ? '已完成' : f.status === 'archived' ? '已归档' : '进行中'}
+                  </span>
+                </div>
 
-  const filteredFollowUps = followUps
-    .filter(followUp => 
-      followUp.customer.companyName.toLowerCase().includes(search.toLowerCase()) ||
-      (followUp.contact?.name && followUp.contact.name.toLowerCase().includes(search.toLowerCase()))
-    )
-    .sort((a, b) => {
-      const dateA = a.nextFollowUpDate ? new Date(a.nextFollowUpDate).getTime() : null;
-      const dateB = b.nextFollowUpDate ? new Date(b.nextFollowUpDate).getTime() : null;
-      // null dates go to the end
-      if (dateA === null && dateB === null) return 0;
-      if (dateA === null) return 1;
-      if (dateB === null) return -1;
-      // Descending order: nearer dates first
-      return dateB - dateA;
-    });
+                {/* 内容行 */}
+                <div className="flex items-center gap-2 text-xs text-gray-500 flex-wrap mb-1.5">
+                  {f.contactMethod === 'whatsapp' ? <MessageCircle className="w-3 h-3 text-green-500" /> : f.contactMethod === 'phone' ? <Phone className="w-3 h-3 text-blue-500" /> : <Mail className="w-3 h-3 text-orange-500" />}
+                  <span>{f.nextAction || f.followUpMatters}</span>
+                  {f.replySentiment && <span className="text-gray-400">{sentimentIcon(f.replySentiment)} 客户已回复</span>}
+                </div>
+
+                {/* 底部信息 */}
+                <div className="flex items-center gap-2 text-[10px] text-gray-400">
+                  <span>{new Date(f.lastFollowUpDate).toLocaleDateString('zh-CN')}</span>
+                  {f.nextFollowUpDate && (
+                    <span className={isOverdue(f.nextFollowUpDate) ? 'text-red-500 font-medium' : ''}>
+                      <Calendar className="w-3 h-3 inline mr-0.5" />
+                      {isOverdue(f.nextFollowUpDate) ? '逾期 ' : '下次 '}{new Date(f.nextFollowUpDate).toLocaleDateString('zh-CN')}
+                    </span>
+                  )}
+                  {f.replyKeyPoints && <span className="text-amber-600 truncate max-w-[200px]">💬 {f.replyKeyPoints}</span>}
+                </div>
+
+                {/* 操作按钮 */}
+                <div className="flex items-center gap-1 mt-2 pt-2 border-t border-gray-50" onClick={e => e.stopPropagation()}>
+                  {!f.isCompleted && (
+                    <button onClick={() => handleComplete(f.id)} className="px-2 py-0.5 text-[10px] text-green-600 bg-green-50 hover:bg-green-100 rounded">
+                      <CheckCircle className="w-3 h-3 inline mr-0.5" />完成
+                    </button>
+                  )}
+                  {editingDate === f.id ? (
+                    <input type="date" defaultValue={f.nextFollowUpDate?.split('T')[0] || ''}
+                      onBlur={e => handleUpdateDate(f.id, e.target.value)}
+                      className="px-1 py-0.5 text-[10px] border border-gray-300 rounded w-28" />
+                  ) : (
+                    <button onClick={() => setEditingDate(f.id)} className="px-2 py-0.5 text-[10px] text-gray-500 hover:bg-gray-100 rounded">
+                      <Calendar className="w-3 h-3 inline mr-0.5" />改期
+                    </button>
+                  )}
+                  {(f.email || f.customer?.email) && (
+                    <button onClick={() => openEmail(f)} className="px-2 py-0.5 text-[10px] text-blue-600 bg-blue-50 hover:bg-blue-100 rounded">
+                      <Send className="w-3 h-3 inline mr-0.5" />发邮件
+                    </button>
+                  )}
+                  <div className="flex items-center gap-0.5 ml-auto">
+                    {f.whatsapp && <a href={`https://wa.me/${f.whatsapp.replace(/\D/g,'')}`} target="_blank" className="p-1 text-green-500 hover:bg-green-50 rounded"><MessageCircle className="w-3 h-3" /></a>}
+                    <button onClick={() => router.push(`/follow-ups/${f.id}/edit`)} className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"><Edit3 className="w-3 h-3" /></button>
+                    <button onClick={() => setDeleteTarget(f)} className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3 h-3" /></button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">客户开发</h1>
-        <div className="flex gap-3">
-          <Button variant="secondary" onClick={() => router.push('/follow-ups/import-export')}>
-            <Download className="w-5 h-5 mr-2" />
-            导入导出
-          </Button>
-          <Button onClick={() => router.push('/follow-ups/new')}>
-            <Plus className="w-5 h-5 mr-2" />
-            新建开发
-          </Button>
+      {/* 头部 */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-4">
+        <h1 className="text-2xl font-bold text-gray-900">客户开发</h1>
+        <div className="flex gap-2">
+          <Button variant="secondary" size="sm" onClick={() => router.push('/follow-ups/import-export')}>导入导出</Button>
+          <Button size="sm" onClick={() => router.push('/follow-ups/new')}><Plus className="w-4 h-4 mr-1" />新建开发</Button>
         </div>
       </div>
 
-      {/* 搜索和筛选 */}
-      <Card className="mb-6">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="text"
-              placeholder="搜索公司或联系人..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent whitespace-nowrap"
-            >
-              <option value="">全部状态</option>
-              <option value="in_progress">进行中</option>
-              <option value="completed">已完成</option>
-              <option value="archived">已归档</option>
-            </select>
-            <select
-              value={priorityFilter}
-              onChange={(e) => setPriorityFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent whitespace-nowrap"
-            >
-              <option value="">全部优先级</option>
-              <option value="high">高</option>
-              <option value="medium">中</option>
-              <option value="low">低</option>
-            </select>
-            <div className="flex items-center text-sm text-gray-600 whitespace-nowrap">
-              <Calendar className="w-4 h-4 mr-2" />
-              共 {filteredFollowUps.length} 条
+      {/* 仪表盘 */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+        {[
+          { label: '活跃客户', value: stats.active, icon: Building2, color: 'text-blue-600 bg-blue-50' },
+          { label: '本月开发', value: stats.monthTotal, icon: Calendar, color: 'text-green-600 bg-green-50' },
+          { label: '本月邮件', value: stats.monthEmails, icon: Mail, color: 'text-purple-600 bg-purple-50' },
+          { label: '逾期任务', value: overdue.length, icon: AlertCircle, color: 'text-red-600 bg-red-50' },
+        ].map(s => (
+          <Card key={s.label} className="!p-3">
+            <div className="flex items-center gap-2">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${s.color}`}><s.icon className="w-4 h-4" /></div>
+              <div>
+                <p className="text-lg font-bold text-gray-900">{s.value}</p>
+                <p className="text-[10px] text-gray-500">{s.label}</p>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {/* 搜索 */}
+      <div className="relative mb-4">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+        <input type="text" placeholder="搜索公司名、国家、开发内容..." value={search} onChange={e => setSearch(e.target.value)}
+          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm bg-white" />
+      </div>
+
+      {/* 分组时间线 */}
+      {loading ? (
+        <div className="text-center py-8 text-gray-500">加载中...</div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-12 text-gray-400">
+          <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-200" />
+          <p>暂无开发记录</p>
+        </div>
+      ) : (
+        <>
+          <GroupSection title="🔴 逾期任务" icon={AlertCircle} color="bg-red-50 text-red-700" list={overdue} groupKey="overdue" />
+          <GroupSection title="📅 今天" icon={Calendar} color="bg-amber-50 text-amber-700" list={todayList} groupKey="today" />
+          <GroupSection title="📌 后续跟进" icon={Clock} color="bg-blue-50 text-blue-700" list={upcoming} groupKey="upcoming" />
+          <GroupSection title="📋 其他" icon={CheckCircle} color="bg-gray-50 text-gray-600" list={other} groupKey="other" />
+        </>
+      )}
+
+      {/* 发邮件弹窗 */}
+      {emailModal.open && emailModal.followUp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => setEmailModal({ open: false, followUp: null })}>
+          <div className="bg-white rounded-xl shadow-xl p-4 w-full max-w-lg mx-4 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <h3 className="font-semibold mb-3">发邮件给 {emailModal.followUp.customer?.companyName}</h3>
+            <input type="text" value={emailSubject} onChange={e => setEmailSubject(e.target.value)}
+              placeholder="主题" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-2" />
+            <MarkdownEditor value={emailBody} onChange={setEmailBody} placeholder="邮件内容（Markdown）..." rows={8} />
+            <div className="flex justify-end gap-2 mt-3">
+              <Button variant="secondary" size="sm" onClick={() => setEmailModal({ open: false, followUp: null })}>取消</Button>
+              <Button size="sm" onClick={sendEmail} loading={sending}><Send className="w-3 h-3 mr-1" />发送</Button>
             </div>
           </div>
         </div>
-      </Card>
-
-      {/* 跟进列表 */}
-      <Card>
-        {loading ? (
-          <div className="text-center py-8">加载中...</div>
-        ) : filteredFollowUps.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">暂无开发记录</div>
-        ) : (
-          <div className="space-y-3 md:space-y-4">
-            {filteredFollowUps.map((followUp) => {
-              const overdue = followUp.nextFollowUpDate && isOverdue(followUp.nextFollowUpDate);
-              const daysOverdue = overdue ? 
-                Math.floor((new Date().getTime() - new Date(followUp.nextFollowUpDate!).getTime()) / (1000 * 60 * 60 * 24)) : 0;
-              
-              return (
-                <div
-                  key={followUp.id}
-                  className="p-3 md:p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer border border-gray-100"
-                  onClick={() => router.push(`/follow-ups/${followUp.id}/edit`)}
-                >
-                  {/* 移动端：垂直布局 */}
-                  <div className="block md:hidden">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-900 text-sm truncate">
-                          {followUp.customer.companyName}
-                        </h3>
-                        {followUp.contact && (
-                          <p className="text-xs text-gray-600 mt-0.5 truncate">
-                            👤 {followUp.contact.name}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex gap-1 ml-2" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            router.push(`/follow-ups/${followUp.id}/edit`);
-                          }}
-                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                          title="编辑"
-                        >
-                          ✏️
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedFollowUp(followUp);
-                            setIsDeleteModalOpen(true);
-                          }}
-                          className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
-                          title="删除"
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    </div>
-                    
-                    <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                      <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${getPriorityColor(followUp.priority)}`}>
-                        {getPriorityText(followUp.priority)}
-                      </span>
-                      <span className="flex items-center gap-1 text-xs text-gray-600">
-                        {getStatusIcon(followUp.status)}
-                        {getStatusText(followUp.status)}
-                      </span>
-                    </div>
-                    
-                    <div className="flex flex-wrap gap-1.5 mb-2">
-                      {/* 电话直达按钮 */}
-                      {followUp.phone && (
-                        <a
-                          href={`tel:${followUp.phone.replace(/\s/g, '')}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs font-medium text-white bg-blue-500 hover:bg-blue-600 rounded transition-colors"
-                        >
-                          📞
-                        </a>
-                      )}
-                      {/* WhatsApp 直达按钮 */}
-                      {followUp.whatsapp && (
-                        <a
-                          href={getWhatsAppUrl(followUp.whatsapp)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs font-medium text-white bg-green-500 hover:bg-green-600 rounded transition-colors"
-                        >
-                          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                          </svg>
-                        </a>
-                      )}
-                      {/* 邮箱直达按钮 */}
-                      {followUp.email && (
-                        <a
-                          href={`mailto:${followUp.email}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs font-medium text-white bg-orange-500 hover:bg-orange-600 rounded transition-colors"
-                        >
-                          📧
-                        </a>
-                      )}
-                    </div>
-                    
-                    <div className="text-xs text-gray-600 mb-1.5 space-y-0.5">
-                      <div className="flex items-center gap-1">
-                        <MessageSquare className="w-3 h-3" />
-                        <span>{getFollowUpMattersText(followUp.followUpMatters)} · {getContactMethodText(followUp.contactMethod)}</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-gray-500">上次: {formatDate(followUp.lastFollowUpDate)}</span>
-                        {followUp.nextFollowUpDate && (
-                          <span className={overdue ? 'text-red-600 font-medium' : 'text-gray-500'}>
-                            下次: {formatDate(followUp.nextFollowUpDate)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {followUp.nextAction && (
-                      <p className="text-xs text-gray-600 truncate">
-                        下一步: {followUp.nextAction}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* 桌面端：水平布局 */}
-                  <div className="hidden md:block">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-semibold text-gray-900">
-                            {followUp.customer.companyName}
-                          </h3>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(followUp.priority)}`}>
-                            {getPriorityText(followUp.priority)}
-                          </span>
-                          <span className="flex items-center gap-1 text-sm text-gray-600">
-                            {getStatusIcon(followUp.status)}
-                            {getStatusText(followUp.status)}
-                          </span>
-                        </div>
-                        
-                        <div className="flex flex-wrap items-center gap-2 mb-2">
-                          {followUp.contact && (
-                            <p className="text-sm text-gray-600">
-                              联系人: {followUp.contact.name}
-                            </p>
-                          )}
-                          {/* 电话直达按钮 */}
-                          {followUp.phone && (
-                            <a
-                              href={`tel:${followUp.phone.replace(/\s/g, '')}`}
-                              onClick={(e) => e.stopPropagation()}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-full transition-colors"
-                              title={`电话: ${followUp.phone}`}
-                            >
-                              📞 电话
-                            </a>
-                          )}
-                          {/* WhatsApp 直达按钮 */}
-                          {followUp.whatsapp && (
-                            <a
-                              href={getWhatsAppUrl(followUp.whatsapp)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-white bg-green-500 hover:bg-green-600 rounded-full transition-colors"
-                              title={`WhatsApp: ${followUp.whatsapp}`}
-                            >
-                              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                              </svg>
-                              WhatsApp
-                            </a>
-                          )}
-                          {/* 邮箱直达按钮 */}
-                          {followUp.email && (
-                            <a
-                              href={`mailto:${followUp.email}`}
-                              onClick={(e) => e.stopPropagation()}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-white bg-orange-500 hover:bg-orange-600 rounded-full transition-colors"
-                              title={`邮箱: ${followUp.email}`}
-                            >
-                              📧 邮箱
-                            </a>
-                          )}
-                          {/* 微信联系提示 */}
-                          {followUp.contactMethod === 'wechat' && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-green-600 bg-green-50 rounded-full">
-                              💬 微信联系
-                            </span>
-                          )}
-                        </div>
-                        
-                        <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
-                          <span className="flex items-center gap-1">
-                            <MessageSquare className="w-4 h-4" />
-                            {getFollowUpMattersText(followUp.followUpMatters)}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            {getContactMethodText(followUp.contactMethod)}
-                          </span>
-                        </div>
-                        
-                        <div className="flex items-center gap-4 text-sm text-gray-500">
-                          <span>上次: {formatDate(followUp.lastFollowUpDate)}</span>
-                          {followUp.nextFollowUpDate && (
-                            <span className={overdue ? 'text-red-600 font-medium' : ''}>
-                              下次: {formatDate(followUp.nextFollowUpDate)}
-                              {overdue && ` (逾期${daysOverdue}天)`}
-                            </span>
-                          )}
-                        </div>
-                        
-                        {followUp.nextAction && (
-                          <p className="text-sm text-gray-600 mt-2">
-                            下一步: {followUp.nextAction}
-                          </p>
-                        )}
-                      </div>
-                      
-                      <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            router.push(`/follow-ups/${followUp.id}/edit`);
-                          }}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="编辑"
-                        >
-                          ✏️
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedFollowUp(followUp);
-                            setIsDeleteModalOpen(true);
-                          }}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="删除"
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </Card>
-
-      {/* 分页 */}
-      {totalPages > 1 && (
-        <div className="flex justify-center gap-2 mt-6">
-          <Button
-            variant="secondary"
-            onClick={() => setPage(page - 1)}
-            disabled={page === 1}
-          >
-            上一页
-          </Button>
-          <span className="flex items-center px-4">
-            第 {page} 页，共 {totalPages} 页
-          </span>
-          <Button
-            variant="secondary"
-            onClick={() => setPage(page + 1)}
-            disabled={page === totalPages}
-          >
-            下一页
-          </Button>
-        </div>
       )}
 
-      {/* 删除确认模态框 */}
-      <ConfirmModal
-        isOpen={isDeleteModalOpen}
-        onClose={() => {
-          setIsDeleteModalOpen(false);
-          setSelectedFollowUp(null);
-        }}
-        onConfirm={handleDelete}
-        title="删除开发记录"
-        message={`确定要删除这条开发记录吗？此操作不可撤销。`}
-        danger
-      />
+      <ConfirmModal isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={handleDelete}
+        title="删除开发记录" message="确定删除？此操作不可撤销。" danger />
     </div>
-  );
-}
-
-export default function FollowUpsPage() {
-  return (
-    <Suspense fallback={<div className="text-center py-8">加载中...</div>}>
-      <FollowUpsPageContent />
-    </Suspense>
   );
 }

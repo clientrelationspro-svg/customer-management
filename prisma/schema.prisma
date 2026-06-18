@@ -51,6 +51,7 @@ model Customer {
   needs           CustomerNeed[] // 关联需求分析
   inquiries       Inquiry[] // 关联询价
   followUpEmails   ScheduledFollowUp[] // 定时跟进邮件
+  developmentPlans DevelopmentPlan[] // 关联开发方案
   
   @@index([userId])
   @@map("customers")
@@ -89,6 +90,14 @@ model FollowUp {
   lastFollowUpDate  DateTime @map("last_follow_up_date")
   nextFollowUpDate  DateTime? @map("next_follow_up_date")
   remarks           String?  @map("remarks")
+  // 业务角色阶段（按用户 businessRole 驱动）
+  stage             String?  @map("stage") // 初步接触,报价谈判,样品寄送,合作成单  或 供应商筛选,询价对比,样品检验,签约供货  或 需求匹配,双方介绍,撮合洽谈,成交跟单
+  isCompleted       Boolean  @default(false) @map("is_completed")
+  // AI 回复分析
+  replySentiment    String?  @map("reply_sentiment") // positive, neutral, negative
+  replyKeyPoints    String?  @map("reply_key_points")
+  replyAiSuggestion String?  @map("reply_ai_suggestion")
+
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
   
@@ -96,6 +105,23 @@ model FollowUp {
   contact           Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
   
   @@map("follow_ups")
+}
+
+// 开发方案模型
+model DevelopmentPlan {
+  id          String   @id @default(cuid())
+  customerId  String   @map("customer_id")
+  goal        String   @map("goal") // 开发目标
+  stage       String   @map("stage") // 当前阶段
+  steps       String   @default("[]") @map("steps") // JSON: [{text:"",done:false}]
+  notes       String?  @map("notes") // 备注
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId])
+  @@map("development_plans")
 }
 
 // 跟进话术模型
