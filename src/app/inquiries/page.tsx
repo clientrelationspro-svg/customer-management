@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/Card';
 
 interface Inquiry {
   id: string; fromEmail: string; fromName?: string; subject: string;
-  status: string; language?: string; aiSummary?: string;
+  status: string; language?: string; aiSummary?: string; body?: string;
   productInterested?: string; createdAt: string;
   scheduledAt?: string; followUpEnabled?: boolean; nextFollowUpAt?: string;
   customer?: { id: string; companyName: string };
