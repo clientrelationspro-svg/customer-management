@@ -1146,6 +1146,19 @@ const STAGES_BY_ROLE: Record<string, string[]> = {
   middleman: ['需求匹配','双方介绍','撮合洽谈','成交跟单'],
 };
 
+// 预设目标模板
+const GOAL_TEMPLATES: Record<string, { label: string; steps: string[] }> = {
+  new_inquiry: { label: '新询价转化', steps: ['发送报价单', '电话确认收到报价', '寄送样品', '询问试单意向', '签订合同'] },
+  price_negotiate: { label: '价格谈判推进', steps: ['了解客户预算', '提供调整方案', '强调品质与认证', '给予限时优惠', '确认下单'] },
+  sample_follow: { label: '样品寄送跟进', steps: ['确认样品规格', '寄送样品并通知', '3天后确认收到', '收集反馈意见', '推进试单'] },
+  dormant_revive: { label: '沉寂客户唤醒', steps: ['发送关怀邮件', '分享新品/行业动态', '提供专属优惠', '电话跟进', '确认合作意向'] },
+  big_client: { label: '大客户深耕', steps: ['分析客户采购周期', '制定专属方案', '高层对接拜访', '提供账期/折扣', '签订年度框架'] },
+  buyer_compare: { label: '供应商比价', steps: ['收集3-5家报价', '横向对比分析', '实地考察/视频验厂', '谈判压价', '签订试单合同'] },
+  buyer_new: { label: '新供应商开发', steps: ['筛选潜在供应商', '发送询价函', '评估报价与资质', '索要样品检验', '签约试单'] },
+  match_deal: { label: '需求匹配撮合', steps: ['了解买方需求', '匹配供应商资源', '双向介绍', '组织沟通/洽谈', '促成交易'] },
+  custom: { label: '自定义方案', steps: [] },
+};
+
 function DevelopmentPlanPanel({ customerId }: { customerId: string }) {
   const [plan, setPlan] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -1153,6 +1166,7 @@ function DevelopmentPlanPanel({ customerId }: { customerId: string }) {
   const [goal, setGoal] = useState('');
   const [stage, setStage] = useState('初步接触');
   const [stages, setStages] = useState<string[]>(STAGES_BY_ROLE.supplier);
+  const [goalTemplate, setGoalTemplate] = useState('');
   const [newStep, setNewStep] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -1212,9 +1226,25 @@ function DevelopmentPlanPanel({ customerId }: { customerId: string }) {
         <span className="text-[10px] text-gray-500 w-10 text-right">{doneCount}/{totalSteps}</span>
       </div>
 
-      {/* 目标 + 步骤 */}
-      <input value={goal} onChange={e => setGoal(e.target.value)} placeholder="开发目标（如：转化为长期供应商）"
-        className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs" />
+      {/* 目标选择 + 模板导入 */}
+      <div className="flex gap-1">
+        <select value={goalTemplate} onChange={e => {
+          setGoalTemplate(e.target.value);
+          const t = GOAL_TEMPLATES[e.target.value];
+          if (t && e.target.value !== 'custom') {
+            setGoal(t.label);
+            setSteps(t.steps.map(s => ({ text: s, done: false })));
+          }
+          if (e.target.value === 'custom') setGoal('');
+        }} className="px-1.5 py-1.5 border border-blue-200 bg-blue-50 rounded text-[10px] flex-shrink-0 w-28">
+          <option value="">选择模板</option>
+          {Object.entries(GOAL_TEMPLATES).map(([k, v]) => (
+            <option key={k} value={k}>{v.label}</option>
+          ))}
+        </select>
+        <input value={goal} onChange={e => { setGoal(e.target.value); setGoalTemplate(''); }} placeholder="或直接输入开发目标"
+          className="flex-1 px-2 py-1.5 border border-gray-200 rounded text-xs" />
+      </div>
       <div className="space-y-1 max-h-[180px] overflow-y-auto">
         {steps.map((s, i) => (
           <div key={i} className={`flex items-center gap-1.5 text-xs p-1 rounded ${s.dueDate && s.dueDate < today && !s.done ? 'bg-red-50' : ''}`}>
