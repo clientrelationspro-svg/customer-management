@@ -226,19 +226,21 @@ export default function InquiriesPage() {
                     <div className="border-t border-gray-100 px-3 py-2 bg-gray-50">
                       <div className="space-y-2 max-h-[350px] overflow-y-auto">
                         {emails.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()).map(e => {
-                          const isOurReply = e.status === 'replied';
+                          const isOur = e.status === 'replied';
+                          const direction = isOur ? 'justify-end' : 'justify-start';
+                          const bubbleStyle = isOur ? 'bg-blue-100 text-blue-900' : 'bg-gray-100 text-gray-700';
+                          const label = isOur ? '📤 我方发送' : '📥 客户来件';
                           return (
-                            <div key={e.id} className={`flex ${isOurReply ? 'justify-end' : 'justify-start'}`}>
-                              <div className={`max-w-[85%] rounded-lg px-3 py-2 text-xs cursor-pointer hover:opacity-90 transition-opacity ${
-                                isOurReply ? 'bg-blue-100 text-blue-900' : 'bg-gray-100 text-gray-700'
-                              }`} onClick={() => router.push(`/inquiries/${e.id}`)}>
+                            <div key={e.id} className={`flex ${direction}`}>
+                              <div className={`max-w-[85%] rounded-lg px-3 py-2 text-xs cursor-pointer hover:opacity-90 transition-opacity ${bubbleStyle}`}
+                                onClick={() => router.push(`/inquiries/${e.id}`)}>
                                 <div className="flex items-center gap-1 mb-0.5">
                                   <span className="font-medium truncate">{e.subject}</span>
-                                  {isOurReply && <span className="text-[10px] bg-green-200 text-green-700 px-1 rounded">✅ 已回复</span>}
+                                  {isOur && <span className="text-[10px] bg-green-200 text-green-700 px-1 rounded">✅ 已回复</span>}
                                 </div>
                                 <p className="line-clamp-2 opacity-70">{e.aiSummary || e.body?.slice(0, 100)}</p>
                                 <div className="flex items-center gap-2 mt-1 text-[10px] opacity-50">
-                                  <span>{isOurReply ? '📤 我方发送' : '📥 客户来件'}</span>
+                                  <span>{label}</span>
                                   <span>{new Date(e.createdAt).toLocaleString('zh-CN', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })}</span>
                                 </div>
                               </div>
