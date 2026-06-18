@@ -187,18 +187,13 @@ export default function InquiriesPage() {
       ) : (
         <div className="space-y-3">
           {/* 按客户分组 */}
-          {(() => {
-            const groups: Record<string, Inquiry[]> = {};
-            inquiries.forEach(i => {
-              const key = i.customer?.id || i.fromEmail;
-              if (!groups[key]) groups[key] = [];
-              groups[key].push(i);
-            });
-            return Object.entries(groups).map(([key, emails]) => {
+          {(function() {
+            const grouped: Record<string, Inquiry[]> = {};
+            inquiries.forEach(i => { const k = i.customer?.id || i.fromEmail; (grouped[k] = grouped[k] || []).push(i); });
+            return Object.entries(grouped).map(([key, emails]) => {
               const first = emails[0];
               const customerName = first.customer?.companyName || first.fromName || first.fromEmail;
               const isOpen = expanded.has(key);
-              // 统计：我方发送 vs 客户来的
               const ourCount = emails.filter(e => e.status === 'replied').length;
               const theirCount = emails.filter(e => e.status !== 'replied').length;
 
