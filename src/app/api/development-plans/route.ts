@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { customerId, goal, steps } = body;
-    const plan = await prisma.developmentPlan.create({ data: { customerId, goal: goal || '', steps: steps || '[]' } });
+    const plan = await prisma.developmentPlan.create({ data: { customerId: String(customerId), goal: goal || '', steps: steps || '[]' } });
     return NextResponse.json({ success: true, data: plan }, { status: 201 });
   } catch { return NextResponse.json({ error: '创建失败' }, { status: 500 }); }
 }
