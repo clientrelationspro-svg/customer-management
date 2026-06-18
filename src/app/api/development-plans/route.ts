@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const plan = await prisma.developmentPlan.create({
-      data: { customerId: body.customerId, goal: body.goal || '', steps: body.steps || '[]' },
+      data: { customerId: body.customerId, goal: body.goal || '', stage: body.stage || '初步接触', steps: body.steps || '[]' },
     });
     return NextResponse.json({ success: true, data: plan }, { status: 201 });
   } catch (e) { return NextResponse.json({ error: '创建失败' }, { status: 500 }); }
@@ -30,7 +30,7 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const plan = await prisma.developmentPlan.update({
       where: { id: body.id },
-      data: { goal: body.goal || '', steps: body.steps || '[]' },
+      data: { goal: body.goal || '', stage: body.stage || '初步接触', steps: body.steps || '[]' },
     });
     return NextResponse.json({ success: true, data: plan });
   } catch (e) { return NextResponse.json({ error: '更新失败' }, { status: 500 }); }

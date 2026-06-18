@@ -1139,16 +1139,30 @@ function CustomerNotesPanel({ customerId }: { customerId: string }) {
   );
 }
 
-// 📋 开发方案面板
+// 📋 开发方案面板（阶段追踪+进度可视化）
+const STAGES_BY_ROLE: Record<string, string[]> = {
+  supplier: ['初步接触','报价谈判','样品寄送','合作成单'],
+  buyer: ['供应商筛选','询价对比','样品检验','签约供货'],
+  middleman: ['需求匹配','双方介绍','撮合洽谈','成交跟单'],
+};
+
 function DevelopmentPlanPanel({ customerId }: { customerId: string }) {
   const [plan, setPlan] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [steps, setSteps] = useState<{ text: string; done: boolean }[]>([]);
+  const [steps, setSteps] = useState<{ text: string; done: boolean; dueDate?: string }[]>([]);
   const [goal, setGoal] = useState('');
+  const [stage, setStage] = useState('初步接触');
+  const [stages, setStages] = useState<string[]>(STAGES_BY_ROLE.supplier);
   const [newStep, setNewStep] = useState('');
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => { loadPlan(); }, [customerId]);
+  useEffect(() => {
+    // 读用户角色
+    fetch('/api/auth/me').then(r => r.json()).then(d => {
+      if (d.success) setStages(STAGES_BY_ROLE[d.data.businessRole] || STAGES_BY_ROLE.supplier);
+    }).catch(() => {});
+    loadPlan();
+  }, [customerId]);
 
   const loadPlan = async () => {
     try {
@@ -1157,6 +1171,7 @@ function DevelopmentPlanPanel({ customerId }: { customerId: string }) {
       if (d.success && d.data) {
         setPlan(d.data);
         setGoal(d.data.goal || '');
+        setStage(d.data.stage || '初步接触');
         setSteps(JSON.parse(d.data.steps || '[]'));
       }
     } catch {} finally { setLoading(false); }
@@ -1166,7 +1181,7 @@ function DevelopmentPlanPanel({ customerId }: { customerId: string }) {
     setSaving(true);
     await fetch('/api/development-plans', {
       method: (plan ? 'PATCH' : 'POST'), headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ customerId, goal, steps: JSON.stringify(steps), id: plan?.id }),
+      body: JSON.stringify({ customerId, goal, stage, steps: JSON.stringify(steps), id: plan?.id }),
     });
     setSaving(false); loadPlan();
   };
@@ -1174,20 +1189,41 @@ function DevelopmentPlanPanel({ customerId }: { customerId: string }) {
   const toggleStep = (i: number) => { const s = [...steps]; s[i].done = !s[i].done; setSteps(s); };
   const addStep = () => { if (newStep.trim()) { setSteps([...steps, { text: newStep.trim(), done: false }]); setNewStep(''); } };
   const removeStep = (i: number) => { setSteps(steps.filter((_, j) => j !== i)); };
+  const updateStepDueDate = (i: number, date: string) => { const s = [...steps]; s[i].dueDate = date || undefined; setSteps(s); };
+
+  const doneCount = steps.filter(s => s.done).length;
+  const totalSteps = steps.length;
+  const progress = totalSteps > 0 ? Math.round((doneCount / totalSteps) * 100) : 0;
+  const today = new Date().toISOString().split('T')[0];
 
   if (loading) return <p className="text-xs text-gray-400">加载中...</p>;
 
   return (
     <div className="space-y-2">
+      {/* 阶段选择 + 进度条 */}
+      <div className="flex items-center gap-1.5">
+        <select value={stage} onChange={e => setStage(e.target.value)}
+          className="px-1.5 py-1 border border-gray-200 rounded text-[10px] bg-white flex-shrink-0">
+          {stages.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <div className="flex-1 bg-gray-100 rounded-full h-2">
+          <div className="bg-blue-500 h-2 rounded-full transition-all" style={{ width: `${progress}%` }} />
+        </div>
+        <span className="text-[10px] text-gray-500 w-10 text-right">{doneCount}/{totalSteps}</span>
+      </div>
+
+      {/* 目标 + 步骤 */}
       <input value={goal} onChange={e => setGoal(e.target.value)} placeholder="开发目标（如：转化为长期供应商）"
         className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs" />
-      <div className="space-y-1 max-h-[150px] overflow-y-auto">
+      <div className="space-y-1 max-h-[180px] overflow-y-auto">
         {steps.map((s, i) => (
-          <label key={i} className="flex items-center gap-1.5 text-xs cursor-pointer">
-            <input type="checkbox" checked={s.done} onChange={() => toggleStep(i)} className="rounded" />
-            <span className={s.done ? 'line-through text-gray-400' : 'text-gray-700'}>{s.text}</span>
-            <button onClick={() => removeStep(i)} className="ml-auto text-gray-300 hover:text-red-500"><X className="w-3 h-3" /></button>
-          </label>
+          <div key={i} className={`flex items-center gap-1.5 text-xs p-1 rounded ${s.dueDate && s.dueDate < today && !s.done ? 'bg-red-50' : ''}`}>
+            <input type="checkbox" checked={s.done} onChange={() => toggleStep(i)} className="rounded flex-shrink-0" />
+            <span className={`flex-1 ${s.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>{s.text}</span>
+            <input type="date" value={s.dueDate || ''} onChange={e => updateStepDueDate(i, e.target.value)}
+              className={`w-24 px-1 py-0.5 border rounded text-[10px] ${s.dueDate && s.dueDate < today && !s.done ? 'border-red-300 text-red-600' : 'border-gray-200 text-gray-500'}`} />
+            <button onClick={() => removeStep(i)} className="text-gray-300 hover:text-red-500"><X className="w-3 h-3" /></button>
+          </div>
         ))}
       </div>
       <div className="flex gap-1">
