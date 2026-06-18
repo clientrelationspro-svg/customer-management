@@ -34,6 +34,7 @@ export default function SequencePromptBuilder({ customerId, inquirySubject, inqu
   const [items, setItems] = useState<DataItem[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [includeEmail, setIncludeEmail] = useState(true);
+  const [planData, setPlanData] = useState<any>(null);
 
   // Prompt
   const [prompt, setPrompt] = useState('');
@@ -83,6 +84,12 @@ export default function SequencePromptBuilder({ customerId, inquirySubject, inqu
         all.push({ id: `need-${n.id}`, source: 'need', label: cat, content: n.content });
       });
     } catch {}
+    // 加载开发方案
+    try {
+      const pr = await fetch(`/api/development-plans?customerId=${customerId}`);
+      const pd = await pr.json();
+      if (pd.success && pd.data) setPlanData(pd.data);
+    } catch {}
     setItems(all);
     setSelected(new Set(all.map(i => i.id)));
     setLoading(false);
@@ -97,6 +104,19 @@ export default function SequencePromptBuilder({ customerId, inquirySubject, inqu
 
     const sel = items.filter(i => selected.has(i.id));
     let dataBlock = '';
+
+    // 开发方案
+    if (planData) {
+      const steps = JSON.parse(planData.steps || '[]');
+      const pending = steps.filter((s: any) => !s.done);
+      dataBlock += `\n### 📋 开发方案\n`;
+      dataBlock += `目标: ${planData.goal || ''}\n`;
+      dataBlock += `阶段: ${planData.stage || ''}\n`;
+      if (pending.length > 0) {
+        dataBlock += `待执行步骤:\n${pending.map((s: any) => `- ${s.text}${s.dueDate ? ` (截止: ${s.dueDate})` : ''}`).join('\n')}\n`;
+      }
+    }
+
     if (sel.length) {
       ['customer', 'followup', 'need'].forEach(src => {
         const g = sel.filter(i => i.source === src);
