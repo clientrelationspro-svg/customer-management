@@ -123,11 +123,11 @@ export default function FollowUpsPage() {
     else other.push(f);
   });
 
-  // A/B级优先排序
+  // 按上次联系时间倒序排列（最近联系的排前面），同级再按客户等级
   [overdue, todayList, upcoming, other].forEach(g => g.sort((a, b) => {
-    const la = a.customer?.level || 'Z';
-    const lb = b.customer?.level || 'Z';
-    return la.localeCompare(lb);
+    const da = new Date(a.lastFollowUpDate).getTime();
+    const db = new Date(b.lastFollowUpDate).getTime();
+    return db - da;
   }));
 
   const priorityColor = (p: string) => p === 'high' ? 'text-red-600 bg-red-50' : p === 'medium' ? 'text-yellow-600 bg-yellow-50' : 'text-green-600 bg-green-50';
