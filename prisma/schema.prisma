@@ -313,6 +313,7 @@ model User {
   name        String?  @map("name")
   password    String   @map("password")
   role        String   @default("user") @map("role")
+  businessRole String   @default("supplier") @map("business_role") // supplier, buyer, middleman
   description String?  @map("description") // 业务描述：如"专注欧美市场的机械设备外贸业务员"
   company     String?  @map("company") // 公司简介
   contact     String?  @map("contact_info") // 联系方式

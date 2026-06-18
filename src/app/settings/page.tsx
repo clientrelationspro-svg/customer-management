@@ -11,6 +11,7 @@ interface User {
   email: string;
   name?: string;
   role: string;
+  businessRole?: string;
   description?: string;
   company?: string;
   contact?: string;
@@ -190,6 +191,46 @@ function SettingsContent() {
             <LogOut className="w-4 h-4 mr-1" /> 退出登录
           </Button>
         </div>
+      </Card>
+
+      {/* 业务角色选择 */}
+      <Card className="mb-6">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h3 className="font-medium text-gray-900 text-sm">业务角色</h3>
+            <p className="text-xs text-gray-500 mt-0.5">选择你在贸易中的角色，系统将调整开发策略和阶段看板</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <select
+              value={currentUser?.businessRole || 'supplier'}
+              onChange={async (e) => {
+                const role = e.target.value;
+                try {
+                  await fetch('/api/auth/me/update', {
+                    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ businessRole: role }),
+                  });
+                  loadData();
+                  setSuccess('业务角色已更新');
+                  setTimeout(() => setSuccess(''), 2000);
+                } catch { setError('更新失败'); }
+              }}
+              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="supplier">🏭 供应商</option>
+              <option value="buyer">🛒 采购商</option>
+              <option value="middleman">🤝 中间商</option>
+            </select>
+          </div>
+        </div>
+        {currentUser?.businessRole && (
+          <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500">
+            当前模式：
+            {currentUser.businessRole === 'supplier' && '供应商 — 阶段看板：初步接触→报价谈判→样品寄送→合作成单'}
+            {currentUser.businessRole === 'buyer' && '采购商 — 阶段看板：供应商筛选→询价对比→样品检验→签约供货'}
+            {currentUser.businessRole === 'middleman' && '中间商 — 阶段看板：需求匹配→双方介绍→撮合洽谈→成交跟单'}
+          </div>
+        )}
       </Card>
 
       {/* 提示信息 */}

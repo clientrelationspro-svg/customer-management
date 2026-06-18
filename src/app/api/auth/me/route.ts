@@ -23,6 +23,7 @@ export async function GET() {
       email: user.email,
       name: user.name,
       role: user.role,
+      businessRole: user.businessRole || 'supplier',
       description: user.description,
     },
   });
