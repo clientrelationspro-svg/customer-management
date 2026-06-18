@@ -5,6 +5,7 @@ import { Plus, Trash2, Edit3, CheckCircle, Send, Phone, Mail, MessageCircle, X, 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { logActivity } from '@/lib/activity';
+import MarkdownEditor, { markdownToHtml } from '@/components/ui/MarkdownEditor';
 
 interface Script {
   id: string;
@@ -434,16 +435,15 @@ content: |
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">话术内容</label>
-              <textarea
+              <MarkdownEditor
                 value={formData.content}
-                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                rows={5}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                onChange={(val) => setFormData({ ...formData, content: val })}
                 placeholder={
                   formData.type === 'whatsapp' ? '您好，我是...关于...想跟您沟通一下...' :
                   formData.type === 'email' ? '您好，\n\n关于...\n\n期待您的回复。\n\n此致' :
                   '您好，我是...想跟您电话沟通关于...'
                 }
+                rows={5}
               />
             </div>
             <div>
@@ -499,9 +499,8 @@ content: |
               </div>
 
               {/* 话术内容 */}
-              <p className="text-sm text-gray-600 whitespace-pre-wrap mb-3 pl-6 border-l-2 border-gray-200">
-                {script.content}
-              </p>
+              <div className="text-sm text-gray-600 mb-3 pl-6 border-l-2 border-gray-200"
+                dangerouslySetInnerHTML={{ __html: markdownToHtml(script.content) }} />
 
               {/* 时间信息行 */}
               <div className="flex flex-wrap items-center gap-3 mb-3 pl-6 text-xs text-gray-500">
