@@ -248,8 +248,8 @@ export default function FollowUpScripts({
     }
   };
 
-  // 打开操作链接
-  const openActionLink = (script: Script) => {
+  // 执行操作：邮件直发 / WhatsApp跳转 / 电话
+  const openActionLink = async (script: Script) => {
     switch (script.type) {
       case 'whatsapp': {
         const number = customerWhatsapp?.replace(/\D/g, '') || '';
@@ -257,7 +257,17 @@ export default function FollowUpScripts({
         break;
       }
       case 'email': {
-        window.location.href = `mailto:${customerEmail || ''}?subject=${encodeURIComponent(script.title)}&body=${encodeURIComponent(script.content)}`;
+        // 直接通过 SMTP 发送邮件
+        const to = customerEmail || '';
+        if (!to) { alert('未找到客户邮箱'); break; }
+        try {
+          const res = await fetch('/api/email-send', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ to, subject: script.title, body: script.content, customerId }),
+          });
+          if (res.ok) alert('邮件已发送！');
+          else alert('发送失败');
+        } catch { alert('发送失败'); }
         break;
       }
       case 'phone': {
@@ -266,6 +276,7 @@ export default function FollowUpScripts({
       }
     }
   };
+
 
 
 
