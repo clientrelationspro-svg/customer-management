@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Search, ChevronDown, ChevronUp, CheckCircle, Calendar, Clock, AlertCircle, Mail, MessageCircle, Phone, Edit3, Trash2, Building2, MapPin, Send, BarChart3 } from 'lucide-react';
+import { Plus, Search, CheckCircle, Calendar, AlertCircle, Mail, MessageCircle, Phone, Edit3, Trash2, Building2, Send } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ConfirmModal } from '@/components/ui/Modal';
@@ -26,8 +26,8 @@ export default function FollowUpsPage() {
   const [search, setSearch] = useState('');
   const [stats, setStats] = useState({ active: 0, monthTotal: 0, monthEmails: 0 });
 
-  // 分组折叠
-  const [groups, setGroups] = useState<Record<string, boolean>>({ overdue: false, today: false, upcoming: false, other: false });
+  // 标签筛选
+  const [tagFilter, setTagFilter] = useState('');
 
   // 邮箱弹窗
   const [emailModal, setEmailModal] = useState<{ open: boolean; followUp: FollowUp | null }>({ open: false, followUp: null });
@@ -102,52 +102,106 @@ export default function FollowUpsPage() {
     finally { setSending(false); }
   };
 
-  // 分组排序
+  // 排序 + 状态标签
   const today = new Date().toISOString().split('T')[0];
-  const overdue: FollowUp[] = [];
-  const todayList: FollowUp[] = [];
-  const upcoming: FollowUp[] = [];
-  const other: FollowUp[] = [];
 
-  const filtered = followUps.filter(f =>
-    f.customer?.companyName?.toLowerCase().includes(search.toLowerCase()) ||
-    f.customer?.country?.toLowerCase().includes(search.toLowerCase()) ||
-    f.nextAction?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = followUps
+    .filter(f =>
+      f.customer?.companyName?.toLowerCase().includes(search.toLowerCase()) ||
+      f.customer?.country?.toLowerCase().includes(search.toLowerCase()) ||
+      f.nextAction?.toLowerCase().includes(search.toLowerCase())
+    )
+    .sort((a, b) => new Date(b.lastFollowUpDate).getTime() - new Date(a.lastFollowUpDate).getTime());
 
-  filtered.forEach(f => {
+  // 标签
+  const getStatusTag = (f: FollowUp) => {
+    if (f.isCompleted) return { label: '✓ 已完成', color: 'bg-green-50 text-green-600' };
     const nd = f.nextFollowUpDate?.split('T')[0];
-    if (nd && isOverdue(f.nextFollowUpDate!) && !f.isCompleted) overdue.push(f);
-    else if (nd === today && !f.isCompleted) todayList.push(f);
-    else if (nd && nd > today && !f.isCompleted) upcoming.push(f);
-    else other.push(f);
-  });
-
-  // 按上次联系时间倒序排列（最近联系的排前面），同级再按客户等级
-  [overdue, todayList, upcoming, other].forEach(g => g.sort((a, b) => {
-    const da = new Date(a.lastFollowUpDate).getTime();
-    const db = new Date(b.lastFollowUpDate).getTime();
-    return db - da;
-  }));
+    if (nd && isOverdue(f.nextFollowUpDate!)) return { label: '🔴 逾期', color: 'bg-red-50 text-red-600' };
+    if (nd === today) return { label: '📅 今日', color: 'bg-amber-50 text-amber-600' };
+    if (nd) return { label: '📌 待跟进', color: 'bg-blue-50 text-blue-600' };
+    return { label: '📋 其他', color: 'bg-gray-50 text-gray-500' };
+  };
 
   const priorityColor = (p: string) => p === 'high' ? 'text-red-600 bg-red-50' : p === 'medium' ? 'text-yellow-600 bg-yellow-50' : 'text-green-600 bg-green-50';
   const priorityText = (p: string) => p === 'high' ? '高' : p === 'medium' ? '中' : '低';
   const levelColor = (l: string) => ({ A: 'bg-red-100 text-red-700', B: 'bg-orange-100 text-orange-700', C: 'bg-blue-100 text-blue-700', D: 'bg-green-100 text-green-700', E: 'bg-gray-100 text-gray-500' }[l] || 'bg-gray-100');
   const sentimentIcon = (s?: string) => s === 'positive' ? '😊' : s === 'negative' ? '😡' : s === 'neutral' ? '😐' : '';
 
-  const GroupSection = ({ title, icon: Icon, color, list, groupKey }: any) => {
-    if (list.length === 0) return null;
-    const isOpen = groups[groupKey];
-    return (
-      <div className="mb-4">
-        <button onClick={() => setGroups(g => ({ ...g, [groupKey]: !isOpen }))}
-          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg font-medium text-sm ${color} hover:opacity-90 transition-opacity`}>
-          <Icon className="w-4 h-4" /> {title} ({list.length})
-          {isOpen ? <ChevronUp className="w-4 h-4 ml-auto" /> : <ChevronDown className="w-4 h-4 ml-auto" />}
-        </button>
-        {isOpen && (
-          <div className="space-y-2 mt-2">
-            {list.map((f: FollowUp) => (
+  // 统计各标签数量
+  const tagCounts: Record<string, number> = {};
+  filtered.forEach(f => { const t = getStatusTag(f).label; tagCounts[t] = (tagCounts[t] || 0) + 1; });
+
+  return (
+    <div>
+      {/* 头部 */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-4">
+        <h1 className="text-2xl font-bold text-gray-900">客户开发</h1>
+        <div className="flex gap-2">
+          <Button variant="secondary" size="sm" onClick={() => router.push('/follow-ups/import-export')}>导入导出</Button>
+          <Button size="sm" onClick={() => router.push('/follow-ups/new')}><Plus className="w-4 h-4 mr-1" />新建开发</Button>
+        </div>
+      </div>
+
+      {/* 仪表盘 */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+        {[
+          { label: '活跃客户', value: stats.active, icon: Building2, color: 'text-blue-600 bg-blue-50' },
+          { label: '本月开发', value: stats.monthTotal, icon: Calendar, color: 'text-green-600 bg-green-50' },
+          { label: '本月邮件', value: stats.monthEmails, icon: Mail, color: 'text-purple-600 bg-purple-50' },
+          { label: '逾期任务', value: filtered.filter(f => !f.isCompleted && f.nextFollowUpDate && isOverdue(f.nextFollowUpDate)).length, icon: AlertCircle, color: 'text-red-600 bg-red-50' },
+        ].map(s => (
+          <Card key={s.label} className="!p-3">
+            <div className="flex items-center gap-2">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${s.color}`}><s.icon className="w-4 h-4" /></div>
+              <div>
+                <p className="text-lg font-bold text-gray-900">{s.value}</p>
+                <p className="text-[10px] text-gray-500">{s.label}</p>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {/* 搜索 */}
+      <div className="relative mb-4">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+        <input type="text" placeholder="搜索公司名、国家、开发内容..." value={search} onChange={e => setSearch(e.target.value)}
+          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm bg-white" />
+      </div>
+
+      {/* 标签筛选栏 */}
+      {filtered.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-3">
+          {[
+            { key: '', label: `全部 (${filtered.length})`, color: 'bg-gray-100 text-gray-600' },
+            { key: '🔴 逾期', label: `🔴 逾期 (${tagCounts['🔴 逾期'] || 0})`, color: 'bg-red-50 text-red-600' },
+            { key: '📅 今日', label: `📅 今日 (${tagCounts['📅 今日'] || 0})`, color: 'bg-amber-50 text-amber-600' },
+            { key: '📌 待跟进', label: `📌 待跟进 (${tagCounts['📌 待跟进'] || 0})`, color: 'bg-blue-50 text-blue-600' },
+          ].map(t => (
+            <button key={t.key} onClick={() => setTagFilter(t.key)}
+              className={`px-2 py-1 rounded-full text-[10px] font-medium transition-colors ${tagFilter === t.key ? t.color + ' ring-1 ring-offset-1' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* 卡片列表 */}
+      {loading ? (
+        <div className="text-center py-8 text-gray-500">加载中...</div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-12 text-gray-400">
+          <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-200" />
+          <p>暂无开发记录</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filtered
+            .filter(f => !tagFilter || getStatusTag(f).label === tagFilter)
+            .map((f: FollowUp) => {
+              const tag = getStatusTag(f);
+              return (
               <div key={f.id} className="bg-white rounded-lg border border-gray-100 hover:border-gray-200 hover:shadow-sm transition-all p-3 cursor-pointer"
                 onClick={() => router.push(`/follow-ups/${f.id}/edit`)}>
                 {/* 头部 */}
@@ -158,10 +212,8 @@ export default function FollowUpsPage() {
                     {f.customer?.country && <span className="text-xs text-gray-400">{f.customer.country}</span>}
                     {f.stage && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600">{f.stage}</span>}
                     <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${priorityColor(f.priority)}`}>{priorityText(f.priority)}</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${tag.color}`}>{tag.label}</span>
                   </div>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0 ${f.isCompleted ? 'bg-green-100 text-green-700' : f.status === 'archived' ? 'bg-gray-100 text-gray-500' : 'bg-blue-100 text-blue-700'}`}>
-                    {f.isCompleted ? '已完成' : f.status === 'archived' ? '已归档' : '进行中'}
-                  </span>
                 </div>
 
                 {/* 内容行 */}
@@ -177,7 +229,7 @@ export default function FollowUpsPage() {
                   {f.nextFollowUpDate && (
                     <span className={isOverdue(f.nextFollowUpDate) ? 'text-red-500 font-medium' : ''}>
                       <Calendar className="w-3 h-3 inline mr-0.5" />
-                      {isOverdue(f.nextFollowUpDate) ? '逾期 ' : '下次 '}{new Date(f.nextFollowUpDate).toLocaleDateString('zh-CN')}
+                      {new Date(f.nextFollowUpDate).toLocaleDateString('zh-CN')}
                     </span>
                   )}
                   {f.replyKeyPoints && <span className="text-amber-600 truncate max-w-[200px]">💬 {f.replyKeyPoints}</span>}
@@ -211,66 +263,8 @@ export default function FollowUpsPage() {
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  return (
-    <div>
-      {/* 头部 */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-4">
-        <h1 className="text-2xl font-bold text-gray-900">客户开发</h1>
-        <div className="flex gap-2">
-          <Button variant="secondary" size="sm" onClick={() => router.push('/follow-ups/import-export')}>导入导出</Button>
-          <Button size="sm" onClick={() => router.push('/follow-ups/new')}><Plus className="w-4 h-4 mr-1" />新建开发</Button>
+            )})}
         </div>
-      </div>
-
-      {/* 仪表盘 */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
-        {[
-          { label: '活跃客户', value: stats.active, icon: Building2, color: 'text-blue-600 bg-blue-50' },
-          { label: '本月开发', value: stats.monthTotal, icon: Calendar, color: 'text-green-600 bg-green-50' },
-          { label: '本月邮件', value: stats.monthEmails, icon: Mail, color: 'text-purple-600 bg-purple-50' },
-          { label: '逾期任务', value: overdue.length, icon: AlertCircle, color: 'text-red-600 bg-red-50' },
-        ].map(s => (
-          <Card key={s.label} className="!p-3">
-            <div className="flex items-center gap-2">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${s.color}`}><s.icon className="w-4 h-4" /></div>
-              <div>
-                <p className="text-lg font-bold text-gray-900">{s.value}</p>
-                <p className="text-[10px] text-gray-500">{s.label}</p>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      {/* 搜索 */}
-      <div className="relative mb-4">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-        <input type="text" placeholder="搜索公司名、国家、开发内容..." value={search} onChange={e => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm bg-white" />
-      </div>
-
-      {/* 分组时间线 */}
-      {loading ? (
-        <div className="text-center py-8 text-gray-500">加载中...</div>
-      ) : filtered.length === 0 ? (
-        <div className="text-center py-12 text-gray-400">
-          <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-200" />
-          <p>暂无开发记录</p>
-        </div>
-      ) : (
-        <>
-          <GroupSection title="🔴 逾期任务" icon={AlertCircle} color="bg-red-50 text-red-700" list={overdue} groupKey="overdue" />
-          <GroupSection title="📅 今天" icon={Calendar} color="bg-amber-50 text-amber-700" list={todayList} groupKey="today" />
-          <GroupSection title="📌 后续跟进" icon={Clock} color="bg-blue-50 text-blue-700" list={upcoming} groupKey="upcoming" />
-          <GroupSection title="📋 其他" icon={CheckCircle} color="bg-gray-50 text-gray-600" list={other} groupKey="other" />
-        </>
       )}
 
       {/* 发邮件弹窗 */}
