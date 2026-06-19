@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import MarkdownEditor, { markdownToHtml } from '@/components/ui/MarkdownEditor';
 import SequencePromptBuilder from '@/components/follow-up/SequencePromptBuilder';
+import ConversationEmailBuilder from '@/components/follow-up/ConversationEmailBuilder';
 
 interface Inquiry {
   id: string; messageId?: string; fromEmail: string; fromName?: string;
@@ -32,7 +33,7 @@ export default function InquiryDetailPage() {
   const [editSubject, setEditSubject] = useState('');
   const [editBody, setEditBody] = useState('');
   const [assignCustomerId, setAssignCustomerId] = useState('');
-  const [replyMode, setReplyMode] = useState<'auto' | 'guided'>('auto');
+  const [replyMode, setReplyMode] = useState<'auto' | 'guided' | 'conversation'>('conversation');
   const [userNotes, setUserNotes] = useState('');
   const [attachments, setAttachments] = useState<{ url: string; filename: string; size: number; type: string }[]>([]);
   const [uploadingFile, setUploadingFile] = useState(false);
@@ -199,16 +200,32 @@ export default function InquiryDetailPage() {
               <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                 <h2 className="font-semibold flex items-center gap-2"><Send className="w-5 h-5 text-green-600" />回复邮件</h2>
                 <div className="flex gap-2">
-                  <Button size="sm" variant={replyMode === 'guided' ? 'secondary' : 'ghost'} onClick={() => setReplyMode('auto')}
+                  <Button size="sm" variant={replyMode === 'conversation' ? 'ghost' : 'secondary'} onClick={() => setReplyMode('conversation')}
+                    className={`text-xs ${replyMode === 'conversation' ? 'font-bold bg-green-50 text-green-700' : ''}`}>
+                    💬 对话式生成
+                  </Button>
+                  <Button size="sm" variant={replyMode === 'auto' ? 'ghost' : 'secondary'} onClick={() => setReplyMode('auto')}
                     className={`text-xs ${replyMode === 'auto' ? 'font-bold bg-blue-50 text-blue-700' : ''}`}>
                     🤖 AI自动生成
                   </Button>
-                  <Button size="sm" variant={replyMode === 'auto' ? 'secondary' : 'ghost'} onClick={() => setReplyMode('guided')}
+                  <Button size="sm" variant={replyMode === 'guided' ? 'ghost' : 'secondary'} onClick={() => setReplyMode('guided')}
                     className={`text-xs ${replyMode === 'guided' ? 'font-bold bg-amber-50 text-amber-700' : ''}`}>
-                    ✍️ 人工引导生成
+                    ✍️ 人工引导
                   </Button>
                 </div>
               </div>
+
+              {/* 对话式生成 */}
+              {replyMode === 'conversation' && (
+                <ConversationEmailBuilder
+                  inquiryId={inquiry?.id || id}
+                  customerId={inquiry?.customer?.id}
+                  customerName={inquiry?.customer?.companyName}
+                  inquirySubject={inquiry?.subject}
+                  inquiryBody={inquiry?.body}
+                  onDraftReady={(subject, body) => { setEditSubject(subject); setEditBody(body); }}
+                />
+              )}
 
               {/* 人工引导：指令输入 */}
               {replyMode === 'guided' && (
