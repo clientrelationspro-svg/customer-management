@@ -115,6 +115,8 @@ model DevelopmentPlan {
   stage       String   @map("stage") // 当前阶段
   steps       String   @default("[]") @map("steps") // JSON: [{text:"",done:false}]
   notes       String?  @map("notes") // 备注
+  lastQuote   String?  @map("last_quote") // 最新报价
+  quoteHistory String  @default("[]") @map("quote_history") // JSON: [{price,currency,terms,date,product}]
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 

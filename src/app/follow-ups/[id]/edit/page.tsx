@@ -1169,6 +1169,8 @@ function DevelopmentPlanPanel({ customerId }: { customerId: string }) {
   const [goalTemplate, setGoalTemplate] = useState('');
   const [newStep, setNewStep] = useState('');
   const [saving, setSaving] = useState(false);
+  const [lastQuote, setLastQuote] = useState('');
+  const [quotes, setQuotes] = useState<{ price: string; currency: string; terms: string; date: string; product: string }[]>([]);
 
   useEffect(() => {
     // 读用户角色
@@ -1187,6 +1189,8 @@ function DevelopmentPlanPanel({ customerId }: { customerId: string }) {
         setGoal(d.data.goal || '');
         setStage(d.data.stage || '初步接触');
         setSteps(JSON.parse(d.data.steps || '[]'));
+        setLastQuote(d.data.lastQuote || '');
+        setQuotes(JSON.parse(d.data.quoteHistory || '[]'));
       }
     } catch {} finally { setLoading(false); }
   };
@@ -1195,7 +1199,7 @@ function DevelopmentPlanPanel({ customerId }: { customerId: string }) {
     setSaving(true);
     await fetch('/api/development-plans', {
       method: (plan ? 'PATCH' : 'POST'), headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ customerId, goal, stage, steps: JSON.stringify(steps), id: plan?.id }),
+      body: JSON.stringify({ customerId, goal, stage, steps: JSON.stringify(steps), lastQuote, quoteHistory: JSON.stringify(quotes), id: plan?.id }),
     });
     setSaving(false); loadPlan();
   };
@@ -1261,6 +1265,28 @@ function DevelopmentPlanPanel({ customerId }: { customerId: string }) {
           placeholder="新增步骤..." className="flex-1 px-2 py-1 border border-gray-200 rounded text-xs" />
         <button onClick={addStep} className="px-2 py-1 bg-gray-100 rounded text-xs hover:bg-gray-200"><Plus className="w-3 h-3" /></button>
       </div>
+
+      {/* 报价记录 */}
+      <div className="pt-2 border-t border-gray-100">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-[10px] font-medium text-gray-500">💰 最新报价</span>
+          <input value={lastQuote} onChange={e => setLastQuote(e.target.value)}
+            placeholder="如: $820/吨 FOB Shanghai" className="flex-1 px-2 py-1 border border-gray-200 rounded text-[10px]" />
+        </div>
+        {quotes.length > 0 && (
+          <div className="text-[10px] text-gray-400 space-y-0.5 max-h-[60px] overflow-y-auto mb-1">
+            {quotes.map((q, i) => (
+              <div key={i} className="flex items-center gap-1">
+                <span>{q.date}</span>
+                <span className="font-medium text-gray-600">{q.price} {q.currency}/{q.terms}</span>
+                <span>{q.product}</span>
+                <button onClick={() => setQuotes(quotes.filter((_, j) => j !== i))} className="text-red-400 ml-auto">×</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <Button size="sm" variant="secondary" className="w-full text-xs" onClick={savePlan} loading={saving}>
         <Save className="w-3 h-3 mr-1" />{plan ? '更新方案' : '保存方案'}
       </Button>

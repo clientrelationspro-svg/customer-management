@@ -71,6 +71,8 @@ async function main() {
     `ALTER TABLE "follow_ups" ADD COLUMN IF NOT EXISTS "reply_key_points" TEXT`,
     `ALTER TABLE "follow_ups" ADD COLUMN IF NOT EXISTS "reply_ai_suggestion" TEXT`,
     `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "business_role" TEXT DEFAULT 'supplier'`,
+    `ALTER TABLE "development_plans" ADD COLUMN IF NOT EXISTS "last_quote" TEXT`,
+    `ALTER TABLE "development_plans" ADD COLUMN IF NOT EXISTS "quote_history" TEXT DEFAULT '[]'`,
   ];
   for (const sql of alters) {
     try { await prisma.$executeRawUnsafe(sql); console.log('  ✓ alter'); } catch {}

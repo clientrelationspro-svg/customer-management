@@ -30,7 +30,7 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const plan = await prisma.developmentPlan.update({
       where: { id: body.id },
-      data: { goal: body.goal || '', stage: body.stage || '初步接触', steps: body.steps || '[]' },
+      data: { goal: body.goal || '', stage: body.stage || '初步接触', steps: body.steps || '[]', lastQuote: body.lastQuote || null, quoteHistory: body.quoteHistory || '[]' },
     });
     return NextResponse.json({ success: true, data: plan });
   } catch (e) { return NextResponse.json({ error: '更新失败' }, { status: 500 }); }

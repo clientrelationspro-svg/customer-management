@@ -112,6 +112,7 @@ export default function SequencePromptBuilder({ customerId, inquirySubject, inqu
       dataBlock += `\n### 📋 开发方案\n`;
       dataBlock += `目标: ${planData.goal || ''}\n`;
       dataBlock += `阶段: ${planData.stage || ''}\n`;
+      if (planData.lastQuote) dataBlock += `最新报价: ${planData.lastQuote}\n`;
       if (pending.length > 0) {
         dataBlock += `待执行步骤:\n${pending.map((s: any) => `- ${s.text}${s.dueDate ? ` (截止: ${s.dueDate})` : ''}`).join('\n')}\n`;
       }
