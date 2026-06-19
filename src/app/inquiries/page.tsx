@@ -190,6 +190,11 @@ export default function InquiriesPage() {
           expanded={expanded}
           onToggle={setExpanded}
           onView={(id) => router.push(`/inquiries/${id}`)}
+          onDelete={async (ids) => {
+            if (!confirm('确定删除该客户的所有邮件？')) return;
+            await Promise.all(ids.map(id => fetch(`/api/inquiries/${id}`, { method: 'DELETE' })));
+            fetchInquiries();
+          }}
         />
       )}
     </div>
@@ -197,11 +202,12 @@ export default function InquiriesPage() {
 }
 
 // 聊天分组列表组件
-function ChatGroupList({ inquiries, expanded, onToggle, onView }: {
+function ChatGroupList({ inquiries, expanded, onToggle, onView, onDelete }: {
   inquiries: Inquiry[];
   expanded: Set<string>;
   onToggle: (setter: (prev: Set<string>) => Set<string>) => void;
   onView: (id: string) => void;
+  onDelete: (ids: string[]) => void;
 }) {
   const grouped: Record<string, Inquiry[]> = {};
   inquiries.forEach(i => {
@@ -237,6 +243,7 @@ function ChatGroupList({ inquiries, expanded, onToggle, onView }: {
               </div>
               <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
                 <button onClick={() => onView(first.id)} className="p-1 text-gray-400 hover:text-blue-600 rounded"><Eye className="w-4 h-4" /></button>
+                <button onClick={() => onDelete(emails.map(e => e.id))} className="p-1 text-gray-400 hover:text-red-600 rounded"><Trash2 className="w-4 h-4" /></button>
                 {isOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
               </div>
             </div>
