@@ -7,6 +7,15 @@ import { extractInquiryPoints, generateReplyDraft, classifyEmail } from '@/lib/a
 const prisma = new PrismaClient();
 export const dynamic = 'force-dynamic';
 
+function getUserIdFromCookie() {
+  try {
+    const token = require('next/headers').cookies().get('auth_token')?.value;
+    if (!token) return null;
+    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+    return payload.userId || null;
+  } catch { return null; }
+}
+
 // GET: 获取邮件列表
 export async function GET(request: NextRequest) {
   try {
@@ -86,7 +95,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     if (body.action === 'sync') {
-      const config = await prisma.emailConfig.findFirst({ where: { isActive: true } });
+      const userId = getUserIdFromCookie();
+      const config = await prisma.emailConfig.findFirst({
+        where: { isActive: true, userId: userId || undefined },
+      });
       if (!config) return NextResponse.json({ success: false, error: '请先配置邮箱' }, { status: 400 });
 
       // 同步半年内所有邮件（含已读）

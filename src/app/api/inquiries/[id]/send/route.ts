@@ -5,6 +5,15 @@ import { sendReplyEmail } from '@/lib/email/smtp-sender';
 const prisma = new PrismaClient();
 export const dynamic = 'force-dynamic';
 
+function getUserIdFromCookie() {
+  try {
+    const token = require('next/headers').cookies().get('auth_token')?.value;
+    if (!token) return null;
+    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+    return payload.userId || null;
+  } catch { return null; }
+}
+
 // POST: 发送/定时发送回复邮件
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -18,7 +27,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const inquiry = await prisma.inquiry.findUnique({ where: { id: params.id } });
     if (!inquiry) return NextResponse.json({ error: '邮件不存在' }, { status: 404 });
 
-    const config = await prisma.emailConfig.findFirst({ where: { isActive: true } });
+    const userId = getUserIdFromCookie();
+    const config = await prisma.emailConfig.findFirst({
+      where: { isActive: true, userId: userId || undefined },
+    });
     if (!config) return NextResponse.json({ error: '邮件配置未找到' }, { status: 400 });
 
     // 定时发送：仅保存草稿和定时时间，不实际发送

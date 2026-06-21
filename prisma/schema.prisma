@@ -351,6 +351,7 @@ model User {
   activities  ActivityLog[]
   customers   Customer[]  // 归属客户
   skills      UserSkill[] // 员工技能
+  emailConfigs EmailConfig[] // 邮箱配置
   
   @@map("users")
 }
@@ -393,6 +394,7 @@ model UserSkill {
 // 邮件配置模型
 model EmailConfig {
   id          String   @id @default(cuid())
+  userId      String   @map("user_id")
   imapHost    String   @map("imap_host")
   imapPort    Int      @default(993) @map("imap_port")
   imapUser    String   @map("imap_user")
@@ -408,6 +410,7 @@ model EmailConfig {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   inquiries   Inquiry[]
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("email_configs")
 }
