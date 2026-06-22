@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save, Plus, Trash2, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, Plus, Trash2, AlertCircle, CheckCircle, Loader2, Sparkles, Copy, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { logActivity } from '@/lib/activity';
 
@@ -53,6 +53,68 @@ export default function NewCustomerPage() {
   
   // 提交状态
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // AI 分析面板
+  const [showAiPanel, setShowAiPanel] = useState(false);
+  const [aiCopied, setAiCopied] = useState(false);
+  const [aiPasteText, setAiPasteText] = useState('');
+  const [aiFillSuccess, setAiFillSuccess] = useState('');
+
+  const aiPromptText = `你是一名专业的外贸客户深度调研专家。请对以下公司进行全方位调研分析。
+
+## 🏢 目标公司
+${formData.companyName || '公司名称'}
+
+## 🔍 搜索与交叉验证
+1. Google搜索："公司名 company profile"、"公司名 revenue"、"公司名 sourcing"
+2. LinkedIn：公司规模、主营业务、关键决策者
+3. 公司官网：About、Products、Contact页面
+4. **海关数据**：查询该公司进出口记录（ImportYeti、Panjiva等）
+5. **供应链分析**：列出主要供应商和下游客户
+
+## 📋 第一部分：深度洞察（填写到备注栏）
+200-400字分析，格式：
+"客户主营[核心业务]，年采购额约[金额]，偏好[付款方式]。曾因[事件]需关注[风险点]。联系人[姓名]([职位])[特点]。海关数据显示：主要从[国家]采购[产品]，向[国家]出口[产品]。其他：[补充]。"
+
+## 📊 第二部分：结构化数据（用 | 竖线分隔）
+字段顺序：公司名称 | 企业规模 | 国家 | 成立日期 | 地址 | 注册资本 | 行业 | 员工人数 | 电话 | 传真 | 网址 | 邮箱 | 社媒 | 联系地址
+输出：${formData.companyName || '公司名称'} | [规模] | [国家] | [日期] | [地址] | [注册资本] | [行业] | [人数] | [电话] | | [网址] | [邮箱] | | 
+
+要求：没有的信息留空，不要表头，不要解释`;
+
+  const handleAiFill = () => {
+    if (!aiPasteText.trim()) return;
+    const lines = aiPasteText.split('\n');
+    const updates: any = {};
+
+    // 1. 解析 | 分隔的结构化数据行
+    const dataLine = lines.find(l => l.includes('|') && l.trim().length > 10 && !l.startsWith('#') && !l.startsWith('字段'));
+    if (dataLine) {
+      const parts = dataLine.split('|').map(p => p.trim());
+      const fields = ['companyName','enterpriseScale','country','establishDate','address','regCapital','industry','employeeCount','phone','fax','website','email','socialMedia','contactAddress'];
+      parts.forEach((val, i) => { if (fields[i] && val && !val.startsWith('[') && val.length > 1) updates[fields[i]] = val; });
+    }
+
+    // 2. 提取深度洞察文本作为备注
+    const dataIdx = lines.findIndex(l => l.includes('|') && !l.startsWith('#') && !l.startsWith('字段'));
+    const narrativeLines = lines.slice(0, dataIdx >= 0 ? dataIdx : lines.length)
+      .filter(l => { const t = l.trim(); return t && !t.startsWith('#') && !t.startsWith('字段') && !t.startsWith('示例') && !t.startsWith('输出') && !t.startsWith('要求') && !l.includes('|'); });
+    if (narrativeLines.length > 0) {
+      updates.notes = narrativeLines.join(' ').replace(/\s+/g, ' ').trim();
+    }
+
+    // 3. 智能提取邮箱、电话、网址
+    const fullText = lines.join(' ');
+    if (!updates.email) { const em = fullText.match(/([\w.+-]+@[\w-]+\.[\w.]+)/); if (em) updates.email = em[1]; }
+    if (!updates.phone) { const ph = fullText.match(/(\+?[\d]{2,4}[\s\-]?[\d\s\-\(\)]{7,})/); if (ph) updates.phone = ph[1].trim(); }
+    if (!updates.website) { const ws = fullText.match(/(?:www\.|https?:\/\/)([\w./-]+)/i); if (ws) updates.website = ws[0].startsWith('http') ? ws[0] : 'https://' + ws[0]; }
+
+    if (Object.keys(updates).length === 0) { setAiFillSuccess('未能解析'); return; }
+
+    setFormData(prev => ({ ...prev, ...updates }));
+    setAiFillSuccess(`已填充 ${Object.keys(updates).length} 个字段`);
+    setTimeout(() => setAiFillSuccess(''), 4000);
+  };
   
   // 处理表单输入变化
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -221,6 +283,52 @@ export default function NewCustomerPage() {
           <ArrowLeft size={20} />
         </button>
         <h1 className="text-2xl font-bold">新增客户</h1>
+      </div>
+
+      {/* AI 客户分析 */}
+      <div className="mb-6">
+        <button
+          onClick={() => setShowAiPanel(!showAiPanel)}
+          className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-200 hover:border-blue-300 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-blue-600" />
+            <span className="font-semibold text-gray-900">AI 客户分析</span>
+            <span className="text-xs text-gray-400">搜索并自动填充客户信息</span>
+          </div>
+          <span className="text-xs text-blue-600">{showAiPanel ? '收起 ▲' : '展开 ▼'}</span>
+        </button>
+
+        {showAiPanel && (
+          <div className="mt-3 p-4 bg-white rounded-xl border border-gray-200 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">🤖 AI 搜索提示词</p>
+                <div className="relative">
+                  <pre className="p-3 bg-gray-900 text-gray-100 rounded-lg text-xs font-mono whitespace-pre-wrap max-h-[300px] overflow-y-auto">{aiPromptText}</pre>
+                  <button onClick={() => { navigator.clipboard.writeText(aiPromptText); setAiCopied(true); setTimeout(() => setAiCopied(false), 2000); }}
+                    className="absolute top-2 right-2 px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">
+                    <Copy className="w-3 h-3 inline mr-1" />{aiCopied ? '已复制' : '复制'}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">📥 粘贴 AI 结果并填充</p>
+                <textarea value={aiPasteText} onChange={e => setAiPasteText(e.target.value)} rows={6}
+                  placeholder="粘贴 AI 返回的数据行..." className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono resize-y" />
+                <div className="flex gap-2 mt-2">
+                  <Button size="sm" onClick={handleAiFill} disabled={!aiPasteText.trim()}>
+                    <Upload className="w-3 h-3 mr-1" />智能填充表单
+                  </Button>
+                  {aiFillSuccess && <span className="text-xs text-green-600 self-center">{aiFillSuccess}</span>}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div>
       </div>
       
       <form onSubmit={handleSubmit}>
