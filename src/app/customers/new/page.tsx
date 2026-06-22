@@ -262,6 +262,31 @@ ${formData.companyName || '公司名称'}
         logActivity('customer_added', result.data?.id);
         alert('客户创建成功');
         router.push('/customers');
+      } else if (result.error?.includes('邮箱已存在') || result.error?.includes('邮箱已被')) {
+        // 邮箱重复，去掉邮箱后重试
+        const email = submitData.email;
+        if (!confirm(`邮箱 ${email} 已存在。是否跳过邮箱、继续创建客户（其他信息保留）？`)) {
+          setIsSubmitting(false);
+          return;
+        }
+        setFormData(prev => ({ ...prev, email: '' }));
+        const retryData = { ...submitData, email: null };
+        try {
+          const r2 = await fetch('/api/customers', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(retryData),
+          });
+          const d2 = await r2.json();
+          if (r2.ok && d2.success) {
+            logActivity('customer_added', d2.data?.id);
+            alert('客户创建成功（邮箱为空，请手动填写）');
+            router.push('/customers');
+          } else {
+            alert(`创建失败: ${d2.error || '未知错误'}`);
+          }
+        } catch {
+          alert('创建失败，请稍后重试');
+        }
       } else {
         alert(`创建失败: ${result.error || '未知错误'}`);
       }

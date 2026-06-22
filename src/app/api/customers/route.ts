@@ -135,8 +135,10 @@ export async function POST(request: NextRequest) {
     console.error('Error creating customer:', error);
     
     if (error.code === 'P2002') {
+      const target = error.meta?.target as string[] | undefined;
+      const field = target?.includes('email') ? '邮箱' : target?.join(', ') || '数据';
       return NextResponse.json(
-        { success: false, error: '邮箱已存在' },
+        { success: false, error: `${field}已被其他客户使用，请更换` },
         { status: 400 }
       );
     }
