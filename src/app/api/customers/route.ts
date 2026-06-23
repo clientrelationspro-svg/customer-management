@@ -26,10 +26,10 @@ export async function GET(request: NextRequest) {
     if (level) where.level = level;
     if (search) {
       where.OR = [
-        { companyName: { contains: search } },
-        { email: { contains: search } },
-        { address: { contains: search } },
-        { industry: { contains: search } },
+        { companyName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { address: { contains: search, mode: 'insensitive' } },
+        { industry: { contains: search, mode: 'insensitive' } },
       ];
     }
     

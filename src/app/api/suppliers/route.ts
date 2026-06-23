@@ -24,10 +24,10 @@ export async function GET(request: NextRequest) {
 
     if (search) {
       where.OR = [
-        { name: { contains: search } },
-        { country: { contains: search } },
-        { mainProducts: { contains: search } },
-        { notes: { contains: search } },
+        { name: { contains: search, mode: 'insensitive' } },
+        { country: { contains: search, mode: 'insensitive' } },
+        { mainProducts: { contains: search, mode: 'insensitive' } },
+        { notes: { contains: search, mode: 'insensitive' } },
       ];
     }
     if (cooperationStatus) where.cooperationStatus = cooperationStatus;
