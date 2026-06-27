@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ConfirmModal } from '@/components/ui/Modal';
 import { isOverdue } from '@/lib/utils';
-import MarkdownEditor, { markdownToHtml } from '@/components/ui/MarkdownEditor';
+import MarkdownEditor from '@/components/ui/MarkdownEditor';
 import { buildEmailHtml } from '@/lib/email/email-template';
 
 interface FollowUp {

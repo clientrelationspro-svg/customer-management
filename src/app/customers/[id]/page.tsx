@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Edit, Trash2, Building2, Phone, Mail, Globe, Users, Target, Plus, Upload, X, Save, Sparkles, Copy, FileText, Send, Clock, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { markdownToHtml } from '@/components/ui/MarkdownEditor';
+import { formatEmailBody } from '@/lib/email/email-template';
 
 interface Customer {
   id: string;
@@ -322,7 +322,7 @@ export default function CustomerDetailPage() {
           </div>
           {customer.notes ? (
             <div className="prose prose-sm max-w-none text-gray-700"
-              dangerouslySetInnerHTML={{ __html: markdownToHtml(customer.notes) }} />
+              dangerouslySetInnerHTML={{ __html: formatEmailBody(customer.notes) }} />
           ) : (
             <p className="text-sm text-gray-400">暂无备注信息</p>
           )}

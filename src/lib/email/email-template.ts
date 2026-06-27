@@ -123,6 +123,24 @@ export function formatEmailBody(content: string): string {
 }
 
 /**
+ * 去除 Markdown 标记，转为干净的纯文本（用于 WhatsApp/电话等不支持格式化的场景）
+ */
+export function stripMarkdown(md: string): string {
+  return md
+    .replace(/^#{1,3}\s+/gm, '')           // 标题
+    .replace(/\*\*\*(.+?)\*\*\*/g, '$1')    // 粗斜体
+    .replace(/\*\*(.+?)\*\*/g, '$1')        // 粗体
+    .replace(/\*(.+?)\*/g, '$1')            // 斜体
+    .replace(/\[(.+?)\]\(.+?\)/g, '$1')     // 链接
+    .replace(/^>\s+/gm, '')                 // 引用
+    .replace(/^-\s+/gm, '• ')               // 无序列表
+    .replace(/^\d+\.\s+/gm, '')             // 数字列表
+    .replace(/^---$/gm, '───')              // 分割线
+    .replace(/\n{3,}/g, '\n\n')             // 多余空行合并
+    .trim();
+}
+
+/**
  * 将正文包装为完整的 HTML 邮件
  * @param bodyHtml 邮件正文 HTML
  * @param subject 邮件主题（可选，用于内部追踪）

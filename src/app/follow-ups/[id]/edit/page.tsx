@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ConfirmModal } from '@/components/ui/Modal';
 import FollowUpScripts from '@/components/follow-up/FollowUpScripts';
+import { formatEmailBody } from '@/lib/email/email-template';
 
 interface Customer {
   id: string;
@@ -1135,7 +1136,7 @@ function CustomerNotesPanel({ customerId }: { customerId: string }) {
   if (!notes) return <p className="text-xs text-gray-400">暂无备注</p>;
   return (
     <div className="text-xs text-gray-600 leading-relaxed max-h-[200px] overflow-y-auto prose prose-xs"
-      dangerouslySetInnerHTML={{ __html: notes }} />
+      dangerouslySetInnerHTML={{ __html: formatEmailBody(notes) }} />
   );
 }
 

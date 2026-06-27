@@ -5,10 +5,10 @@ import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Send, RefreshCw, Save, UserPlus, CheckCircle, AlertCircle, Mail, Package, Calendar, Globe, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import MarkdownEditor, { markdownToHtml } from '@/components/ui/MarkdownEditor';
+import MarkdownEditor from '@/components/ui/MarkdownEditor';
 import SequencePromptBuilder from '@/components/follow-up/SequencePromptBuilder';
 import ConversationEmailBuilder from '@/components/follow-up/ConversationEmailBuilder';
-import { buildEmailHtml } from '@/lib/email/email-template';
+import { buildEmailHtml, formatEmailBody } from '@/lib/email/email-template';
 
 interface Inquiry {
   id: string; messageId?: string; fromEmail: string; fromName?: string;
@@ -73,7 +73,7 @@ export default function InquiryDetailPage() {
   useEffect(() => { fetchInquiry(); fetchFollowUps(); fetch('/api/customers?limit=200').then(r => r.json()).then(d => { if (d.success) setCustomers(d.data || []); }).catch(() => {}); }, [id]);
 
   const handleSaveDraft = async () => {
-    const htmlBody = buildEmailHtml(editBody, editSubject);
+    const htmlBody = formatEmailBody(editBody);
     await fetch(`/api/inquiries/${id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ finalSubject: editSubject, finalBody: htmlBody, customerId: assignCustomerId || null, action: 'review' }),
@@ -395,8 +395,8 @@ export default function InquiryDetailPage() {
                       <span className="text-sm font-medium">{r.subject}</span>
                       <span className="text-xs text-gray-500 ml-auto">{new Date(r.sentAt).toLocaleString('zh-CN')}</span>
                     </div>
-                    <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed"
-                      dangerouslySetInnerHTML={{ __html: r.body.includes('<') ? r.body : markdownToHtml(r.body) }}
+                    <div className="text-sm text-gray-700 leading-relaxed"
+                      dangerouslySetInnerHTML={{ __html: formatEmailBody(r.body) }}
                     />
                   </div>
                 ))}

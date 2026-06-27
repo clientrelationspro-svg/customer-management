@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { logActivity } from '@/lib/activity';
 import MarkdownEditor, { markdownToHtml } from '@/components/ui/MarkdownEditor';
-import { buildEmailHtml } from '@/lib/email/email-template';
+import { buildEmailHtml, stripMarkdown, formatEmailBody } from '@/lib/email/email-template';
 
 interface Script {
   id: string;
@@ -255,7 +255,7 @@ export default function FollowUpScripts({
     switch (script.type) {
       case 'whatsapp': {
         const number = customerWhatsapp?.replace(/\D/g, '') || '';
-        if (number) window.open(`https://wa.me/${number}?text=${encodeURIComponent(script.content)}`, '_blank');
+        if (number) window.open(`https://wa.me/${number}?text=${encodeURIComponent(stripMarkdown(script.content))}`, '_blank');
         break;
       }
       case 'email': {
