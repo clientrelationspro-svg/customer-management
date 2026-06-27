@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Send, RefreshCw, Save, UserPlus, CheckCircle, Mail, Package, Globe, Trash2, Sparkles, X } from 'lucide-react';
+import { ArrowLeft, Send, Save, UserPlus, CheckCircle, Mail, Package, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import MarkdownEditor from '@/components/ui/MarkdownEditor';
@@ -30,15 +30,13 @@ export default function InquiryDetailPage() {
   const [inquiry, setInquiry] = useState<Inquiry | null>(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [regenerating, setRegenerating] = useState(false);
   const [saved, setSaved] = useState(false);
   const [editSubject, setEditSubject] = useState('');
   const [editBody, setEditBody] = useState('');
   const [assignCustomerId, setAssignCustomerId] = useState('');
   const [customers, setCustomers] = useState<any[]>([]);
   const [userNotes, setUserNotes] = useState('');
-  const [showNotesInput, setShowNotesInput] = useState(false);
-  const [aiFeedback, setAiFeedback] = useState('');
+  const [showNotesInput, setShowNotesInput] = useState(true);
   const [attachments, setAttachments] = useState<{ url: string; filename: string; size: number; type: string }[]>([]);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [scheduleMode, setScheduleMode] = useState(false);
@@ -82,28 +80,28 @@ export default function InquiryDetailPage() {
     fetchInquiry();
   };
 
-  const handleRegenerate = async () => {
-    setRegenerating(true);
-    setAiFeedback('');
-    try {
-      const body: any = { regenerateDraft: true, customerId: assignCustomerId || null };
-      if (userNotes.trim()) body.userNotes = userNotes.trim();
-      const res = await fetch(`/api/inquiries/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      const d = await res.json();
-      if (res.ok && d.success) {
-        setEditSubject(d.data.aiDraftSubject);
-        setEditBody(d.data.aiDraftBody);
-        setShowNotesInput(false);
-        setAiFeedback('✅ AI 草稿已生成，可直接编辑修改');
-        setTimeout(() => setAiFeedback(''), 3000);
-      } else {
-        setAiFeedback(`❌ ${d.error || '生成失败，请重试'}`);
-      }
-    } catch {
-      setAiFeedback('❌ 网络错误，请检查连接');
-    } finally {
-      setRegenerating(false);
-    }
+  // 将用户要点格式化为邮件模板
+  const applyNotes = () => {
+    if (!userNotes.trim()) return;
+    const points = userNotes.trim().split(/[,，\n]/).filter(p => p.trim());
+    const customerName = inquiry?.fromName || inquiry?.fromEmail?.split('@')[0] || 'Sir/Madam';
+    const productInfo = inquiry?.productInterested ? `关于 ${inquiry.productInterested}` : '';
+    
+    const body = `感谢您的来信，${productInfo ? `**${productInfo}**。` : ''}
+
+关于您提到的需求：
+
+${points.map((p, i) => `${i + 1}. ${p.trim()}`).join('\n')}
+
+如有任何疑问，请随时联系。
+
+此致
+敬礼`;
+
+    const subject = inquiry?.subject ? `Re: ${inquiry.subject}` : '回复：询价';
+    setEditSubject(subject);
+    setEditBody(body);
+    setShowNotesInput(false);
   };
 
   const handleAddFollowUp = async () => {
@@ -191,45 +189,32 @@ export default function InquiryDetailPage() {
             <Card>
               <h2 className="font-semibold mb-3 flex items-center gap-2"><Send className="w-5 h-5 text-green-600" />回复邮件</h2>
 
-              {/* AI 生成草稿按钮区 */}
-              {!showNotesInput ? (<>
-                <div className="flex items-center gap-2 mb-4 flex-wrap">
-                  <Button size="sm" onClick={handleRegenerate} loading={regenerating} className="bg-purple-600 hover:bg-purple-700">
-                    <Sparkles className="w-3 h-3 mr-1" />AI 生成回复草稿
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setShowNotesInput(true)} className="text-xs text-gray-500">
-                    指定生成要点
-                  </Button>
-                  {editSubject && (
-                    <Button size="sm" variant="ghost" onClick={handleRegenerate} className="text-xs text-purple-600 ml-auto">
-                      <RefreshCw className="w-3 h-3 mr-1" />重新生成
-                    </Button>
-                  )}
+              {/* 要点输入框（默认展开） */}
+              <div className="mb-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-medium text-amber-700">✏️ 回复要点（每行一个要点，自动生成邮件模板）</label>
+                  <button onClick={() => setShowNotesInput(!showNotesInput)} className="text-amber-400 hover:text-amber-600 text-xs">
+                    {showNotesInput ? '收起' : '展开'}
+                  </button>
                 </div>
-              </>) : (
-                <div className="mb-4 p-3 bg-purple-50 rounded-lg border border-purple-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-medium text-purple-700">💡 回复要点（可选，帮助 AI 生成更精准的回复）</label>
-                    <button onClick={() => { setShowNotesInput(false); setUserNotes(''); }} className="text-purple-400 hover:text-purple-600"><X className="w-3.5 h-3.5" /></button>
-                  </div>
-                  <textarea value={userNotes} onChange={e => setUserNotes(e.target.value)} rows={2}
-                    placeholder="如：报CIF价$820/吨，强调ISO认证，询问是否需要样品..."
-                    className="w-full px-3 py-2 border border-purple-300 rounded-lg text-sm resize-y" />
+                {showNotesInput && (<>
+                  <textarea value={userNotes} onChange={e => setUserNotes(e.target.value)} rows={4}
+                    placeholder={`报CIF价$820/吨，FOB上海
+强调ISO 9001和CE认证
+最小起订量5吨，30天交货
+询问是否需要免费样品
+提供公司网站和联系方式`}
+                    className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm resize-y font-mono" />
                   <div className="flex justify-between items-center mt-2">
-                    <span className="text-xs text-purple-500">AI 会结合客户档案和你的要点生成回复</span>
-                    <Button size="sm" onClick={handleRegenerate} loading={regenerating}>
-                      <Sparkles className="w-3 h-3 mr-1" />{editSubject ? '重新生成' : '生成回复'}
+                    <span className="text-xs text-amber-600">
+                      {userNotes.trim() ? `已输入 ${userNotes.trim().split(/[\\n,，]/).filter((p: string) => p.trim()).length} 个要点` : '输入你的回复要点，系统将自动排版为邮件'}
+                    </span>
+                    <Button size="sm" onClick={applyNotes} disabled={!userNotes.trim()} className="bg-amber-600 hover:bg-amber-700">
+                      📋 应用为邮件模板
                     </Button>
                   </div>
-                </div>
-              )}
-
-              {/* 反馈信息 */}
-              {aiFeedback && (
-                <div className={`mb-3 text-xs p-2 rounded-lg ${aiFeedback.startsWith('✅') ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'}`}>
-                  {aiFeedback}
-                </div>
-              )}
+                </>)}
+              </div>
 
               {/* 编辑区 */}
               <div className="space-y-3">
