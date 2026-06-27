@@ -41,6 +41,8 @@ export default function FollowUpsPage() {
 
   // 日期编辑
   const [editingDate, setEditingDate] = useState<string | null>(null);
+  const [batchProcessing, setBatchProcessing] = useState(false);
+  const [batchResult, setBatchResult] = useState('');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -103,6 +105,36 @@ export default function FollowUpsPage() {
     finally { setSending(false); }
   };
 
+  // 自动处理到期任务
+  const dueItems = followUps.filter(f => 
+    !f.isCompleted && f.nextFollowUpDate && new Date(f.nextFollowUpDate) <= new Date()
+  );
+  const dueEmails = dueItems.filter(f => f.email || f.customer?.email);
+  const dueWhatsapps = dueItems.filter(f => f.whatsapp);
+
+  const processDueEmails = async () => {
+    if (dueEmails.length === 0) return;
+    setBatchProcessing(true);
+    setBatchResult('');
+    let sent = 0; let failed = 0;
+    for (const f of dueEmails) {
+      try {
+        const to = f.email || f.customer?.email;
+        if (!to) { failed++; continue; }
+        const body = f.remarks ? f.remarks.replace(/^【.*】\n收件人:.*\n\n/, '') : `Hi,\n\nFollowing up on our previous conversation.\n\nBest regards`;
+        const htmlBody = buildEmailHtml(body);
+        const res = await fetch('/api/email-send', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ to, subject: 'Follow-up', body: htmlBody, customerId: f.customerId, followUpId: f.id }),
+        });
+        res.ok ? sent++ : failed++;
+      } catch { failed++; }
+    }
+    setBatchResult(`✅ ${sent} 封已发送${failed ? `, ${failed} 封失败` : ''}`);
+    setBatchProcessing(false);
+    fetchData();
+  };
+
   // 排序 + 状态标签
   const today = new Date().toISOString().split('T')[0];
 
@@ -163,6 +195,47 @@ export default function FollowUpsPage() {
           </Card>
         ))}
       </div>
+
+      {/* 到期任务处理横幅 */}
+      {dueItems.length > 0 && (
+        <div className="mb-4 p-3 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">⏰</span>
+              <div>
+                <p className="text-sm font-semibold text-amber-800">{dueItems.length} 个到期任务</p>
+                <p className="text-xs text-amber-600">
+                  {dueEmails.length > 0 && `📧 ${dueEmails.length} 封邮件 `}
+                  {dueWhatsapps.length > 0 && `💬 ${dueWhatsapps.length} 条 WhatsApp`}
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              {dueEmails.length > 0 && (
+                <Button size="sm" onClick={processDueEmails} loading={batchProcessing}
+                  className="bg-amber-600 hover:bg-amber-700 text-white">
+                  <Send className="w-3 h-3 mr-1" />一键发送 {dueEmails.length} 封邮件
+                </Button>
+              )}
+              {dueWhatsapps.length > 0 && (
+                <Button size="sm" variant="secondary" onClick={() => {
+                  dueWhatsapps.forEach(f => {
+                    const num = f.whatsapp?.replace(/\D/g, '');
+                    if (num) window.open(`https://wa.me/${num}?text=${encodeURIComponent(f.nextAction || 'Hi')}`, '_blank');
+                  });
+                }}>
+                  <MessageCircle className="w-3 h-3 mr-1" />打开 {dueWhatsapps.length} 条 WhatsApp
+                </Button>
+              )}
+            </div>
+          </div>
+          {batchResult && (
+            <div className={`mt-2 text-xs p-2 rounded ${batchResult.includes('✅') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+              {batchResult}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 搜索 */}
       <div className="relative mb-4">
