@@ -1,0 +1,416 @@
+// MCP Server Prisma Schema
+// 共享父项目的数据库模型，但将生成的客户端输出到本地的 node_modules
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ===== 从父项目继承的模型定义 =====
+// 注意: 以下模型必须与 ../prisma/schema.prisma 保持一致
+
+model Customer {
+  id              String   @id @default(cuid())
+  companyName     String   @map("company_name")
+  enterpriseScale String?  @map("enterprise_scale")
+  country         String?  @map("country")
+  establishDate   DateTime? @map("establish_date")
+  address         String?  @map("address")
+  regCapital      String?  @map("reg_capital")
+  industry        String?  @map("industry")
+  employeeCount   String?  @map("employee_count")
+  notes           String?  @map("notes")
+  level           String?  @default("C") @map("level")
+  phone           String?  @map("phone")
+  fax             String?  @map("fax")
+  website         String?  @map("website")
+  email           String?  @unique @map("email")
+  socialMedia     String?  @map("social_media")
+  contactAddress  String?  @map("contact_address")
+  keyContactId    String?  @map("key_contact_id")
+  keyContact      Contact? @relation("KeyContact", fields: [keyContactId], references: [id], onDelete: SetNull)
+  userId          String?  @map("user_id")
+  user            User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  status          String   @default("active") @map("status")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  orders          Order[]
+  files           File[]   @relation("CustomerFiles")
+  contacts        Contact[]
+  followUps       FollowUp[]
+  scripts         FollowUpScript[]
+  needs           CustomerNeed[]
+  inquiries       Inquiry[]
+  followUpEmails   ScheduledFollowUp[]
+  developmentPlans DevelopmentPlan[]
+  @@index([userId])
+  @@map("customers")
+}
+
+model CustomerNeed {
+  id            String   @id @default(cuid())
+  customerId    String   @map("customer_id")
+  category      String   @map("category")
+  content       String   @map("content")
+  style         String?  @map("style")
+  priority      Int      @default(0) @map("priority")
+  source        String   @default("manual") @map("source")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  customer      Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  @@map("customer_needs")
+}
+
+model FollowUp {
+  id                String   @id @default(cuid())
+  customerId        String   @map("customer_id")
+  contactId         String?  @map("contact_id")
+  phone             String?  @map("phone")
+  whatsapp          String?  @map("whatsapp")
+  email             String?  @map("email")
+  followUpMatters   String   @map("follow_up_matters")
+  contactMethod     String   @map("contact_method")
+  nextAction        String?  @map("next_action")
+  priority          String   @default("medium") @map("priority")
+  status            String   @default("in_progress") @map("status")
+  lastFollowUpDate  DateTime @map("last_follow_up_date")
+  nextFollowUpDate  DateTime? @map("next_follow_up_date")
+  remarks           String?  @map("remarks")
+  stage             String?  @map("stage")
+  isCompleted       Boolean  @default(false) @map("is_completed")
+  replySentiment    String?  @map("reply_sentiment")
+  replyKeyPoints    String?  @map("reply_key_points")
+  replyAiSuggestion String?  @map("reply_ai_suggestion")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  customer          Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  contact           Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  @@map("follow_ups")
+}
+
+model DevelopmentPlan {
+  id          String   @id @default(cuid())
+  customerId  String   @map("customer_id")
+  goal        String   @map("goal")
+  stage       String   @map("stage")
+  steps       String   @default("[]") @map("steps")
+  notes       String?  @map("notes")
+  lastQuote   String?  @map("last_quote")
+  quoteHistory String  @default("[]") @map("quote_history")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  @@unique([customerId])
+  @@map("development_plans")
+}
+
+model FollowUpScript {
+  id                String   @id @default(cuid())
+  customerId        String   @map("customer_id")
+  type              String   @map("type")
+  title             String   @map("title")
+  content           String   @map("content")
+  lastSentAt        DateTime? @map("last_sent_at")
+  nextFollowUpDate  DateTime? @map("next_follow_up_date")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  customer          Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  @@map("follow_up_scripts")
+}
+
+model Contact {
+  id            String   @id @default(cuid())
+  customerId    String   @map("customer_id")
+  name          String   @map("name")
+  position      String?  @map("position")
+  email         String?  @map("email")
+  whatsapp      String?  @map("whatsapp")
+  phone         String?  @map("phone")
+  remarks       String?  @map("remarks")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  customer        Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  keyForCustomers Customer[] @relation("KeyContact")
+  followUps       FollowUp[]
+  @@map("contacts")
+}
+
+model Supplier {
+  id                String   @id @default(cuid())
+  name              String   @map("name")
+  email             String?  @unique @map("email")
+  phone             String?  @map("phone")
+  website           String?  @map("website")
+  address           String?  @map("address")
+  country           String?  @map("country")
+  mainProducts      String?  @map("main_products")
+  cooperationStatus String   @default("potential") @map("cooperation_status")
+  riskLevel         String?  @map("risk_level")
+  riskTypes         String?  @map("risk_types")
+  riskDescription   String?  @map("risk_description")
+  foundedDate       DateTime? @map("founded_date")
+  orderAmount       Decimal? @map("order_amount")
+  isStarred         Boolean  @default(false) @map("is_starred")
+  notes             String?  @map("notes")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  products          Product[]
+  files             File[]   @relation("SupplierFiles")
+  contacts          SupplierContact[]
+  communications    SupplierCommunication[]
+  riskEvents        SupplierRiskEvent[]
+  @@map("suppliers")
+}
+
+model SupplierContact {
+  id                    String   @id @default(cuid())
+  supplierId            String   @map("supplier_id")
+  name                  String   @map("name")
+  position              String?  @map("position")
+  phone                 String?  @map("phone")
+  whatsapp              String?  @map("whatsapp")
+  email                 String?  @map("email")
+  wechat                String?  @map("wechat")
+  decisionWeight        String?  @map("decision_weight")
+  communicationPreference String? @map("communication_preference")
+  timezone              String?  @map("timezone")
+  remarks               String?  @map("remarks")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+  supplier              Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  communications        SupplierCommunication[]
+  @@map("supplier_contacts")
+}
+
+model SupplierCommunication {
+  id          String   @id @default(cuid())
+  supplierId  String   @map("supplier_id")
+  contactId   String?  @map("contact_id")
+  method      String   @map("method")
+  content     String   @map("content")
+  createdAt   DateTime @default(now()) @map("created_at")
+  supplier    Supplier          @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  contact     SupplierContact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  @@map("supplier_communications")
+}
+
+model SupplierRiskEvent {
+  id          String    @id @default(cuid())
+  supplierId  String    @map("supplier_id")
+  riskType    String    @map("risk_type")
+  description String    @map("description")
+  severity    String    @default("medium") @map("severity")
+  occurredAt  DateTime  @default(now()) @map("occurred_at")
+  resolvedAt  DateTime? @map("resolved_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  supplier    Supplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  @@map("supplier_risk_events")
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String   @map("name")
+  sku         String   @unique @map("sku")
+  description String?  @map("description")
+  price       Decimal  @map("price")
+  cost        Decimal? @map("cost")
+  stock       Int      @default(0) @map("stock")
+  minStock    Int      @default(0) @map("min_stock")
+  category    String?  @map("category")
+  status      String   @default("active") @map("status")
+  supplierId  String?  @map("supplier_id")
+  images      String?  @map("images")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  supplier    Supplier? @relation(fields: [supplierId], references: [id])
+  orderItems  OrderItem[]
+  files       File[]    @relation("ProductFiles")
+  @@map("products")
+}
+
+model Order {
+  id          String   @id @default(cuid())
+  orderNo     String   @unique @map("order_no")
+  customerId  String   @map("customer_id")
+  status      String   @default("pending") @map("status")
+  totalAmount Decimal  @map("total_amount")
+  paidAmount  Decimal  @default(0) @map("paid_amount")
+  notes       String?  @map("notes")
+  orderDate   DateTime @default(now()) @map("order_date")
+  deliveryDate DateTime? @map("delivery_date")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  customer    Customer @relation(fields: [customerId], references: [id])
+  items       OrderItem[]
+  files       File[]   @relation("OrderFiles")
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String   @map("order_id")
+  productId   String   @map("product_id")
+  quantity    Int      @map("quantity")
+  unitPrice   Decimal  @map("unit_price")
+  totalPrice  Decimal  @map("total_price")
+  createdAt   DateTime @default(now()) @map("created_at")
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id])
+  @@map("order_items")
+}
+
+model File {
+  id            String   @id @default(cuid())
+  filename      String   @map("filename")
+  originalName  String   @map("original_name")
+  filePath      String   @map("file_path")
+  fileSize      Int      @map("file_size")
+  mimeType      String   @map("mime_type")
+  uploadedBy    String?  @map("uploaded_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+  customerId    String?  @map("customer_id")
+  supplierId    String?  @map("supplier_id")
+  orderId       String?  @map("order_id")
+  productId     String?  @map("product_id")
+  customer      Customer? @relation("CustomerFiles", fields: [customerId], references: [id], onDelete: Cascade)
+  supplier      Supplier? @relation("SupplierFiles", fields: [supplierId], references: [id], onDelete: Cascade)
+  order         Order?    @relation("OrderFiles", fields: [orderId], references: [id], onDelete: Cascade)
+  product       Product?  @relation("ProductFiles", fields: [productId], references: [id], onDelete: Cascade)
+  @@map("files")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique @map("email")
+  name        String?  @map("name")
+  password    String   @map("password")
+  role        String   @default("user") @map("role")
+  businessRole String   @default("supplier") @map("business_role")
+  description String?  @map("description")
+  company     String?  @map("company")
+  contact     String?  @map("contact_info")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  activities  ActivityLog[]
+  customers   Customer[]
+  skills      UserSkill[]
+  emailConfigs EmailConfig[]
+  @@map("users")
+}
+
+model ActivityLog {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  customerId  String?  @map("customer_id")
+  action      String   @map("action")
+  createdAt   DateTime @default(now()) @map("created_at")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, createdAt])
+  @@map("activity_logs")
+}
+
+model UserSkill {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  name        String   @map("name")
+  category    String   @default("communication") @map("category")
+  workflow    String   @map("workflow")
+  goals       String   @map("goals")
+  tips        String?  @map("tips")
+  tools       String?  @map("tools")
+  sortOrder   Int      @default(0) @map("sort_order")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@map("user_skills")
+}
+
+model EmailConfig {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  imapHost    String   @map("imap_host")
+  imapPort    Int      @default(993) @map("imap_port")
+  imapUser    String   @map("imap_user")
+  imapPass    String   @map("imap_pass")
+  smtpHost    String   @map("smtp_host")
+  smtpPort    Int      @default(465) @map("smtp_port")
+  smtpUser    String   @map("smtp_user")
+  smtpPass    String   @map("smtp_pass")
+  fromName    String   @map("from_name")
+  isActive    Boolean  @default(true) @map("is_active")
+  lastSyncAt  DateTime? @map("last_sync_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  inquiries   Inquiry[]
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("email_configs")
+}
+
+model Inquiry {
+  id              String    @id @default(cuid())
+  emailConfigId   String?   @map("email_config_id")
+  customerId      String?   @map("customer_id")
+  messageId       String?   @unique @map("message_id")
+  fromEmail       String    @map("from_email")
+  fromName        String?   @map("from_name")
+  subject         String    @map("subject")
+  body            String    @map("body")
+  bodyHtml        String?   @map("body_html")
+  language        String?   @map("language")
+  status          String    @default("new") @map("status")
+  productInterested String? @map("product_interested")
+  quantity         String?  @map("quantity")
+  deliveryRequired String?  @map("delivery_required")
+  aiSummary        String?  @map("ai_summary")
+  aiDraftSubject   String?  @map("ai_draft_subject")
+  aiDraftBody      String?  @map("ai_draft_body")
+  finalSubject     String?  @map("final_subject")
+  finalBody        String?  @map("final_body")
+  repliedAt        DateTime? @map("replied_at")
+  replyMessageId   String?  @map("reply_message_id")
+  scheduledAt      DateTime? @map("scheduled_at")
+  followUpEnabled  Boolean   @default(false) @map("follow_up_enabled")
+  followUpInterval Int?      @map("follow_up_interval")
+  followUpUntil    DateTime? @map("follow_up_until")
+  nextFollowUpAt   DateTime? @map("next_follow_up_at")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  emailConfig      EmailConfig? @relation(fields: [emailConfigId], references: [id])
+  customer         Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  replies          InquiryReply[]
+  followUpEmails   ScheduledFollowUp[]
+  @@map("inquiries")
+}
+
+model InquiryReply {
+  id          String   @id @default(cuid())
+  inquiryId   String   @map("inquiry_id")
+  subject     String   @map("subject")
+  body        String   @map("body")
+  sentAt      DateTime @default(now()) @map("sent_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  inquiry     Inquiry  @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  @@map("inquiry_replies")
+}
+
+model ScheduledFollowUp {
+  id          String    @id @default(cuid())
+  inquiryId   String?   @map("inquiry_id")
+  customerId  String?   @map("customer_id")
+  subject     String    @map("subject")
+  body        String    @map("body")
+  scheduledAt DateTime  @map("scheduled_at")
+  status      String    @default("pending") @map("status")
+  sortOrder   Int       @default(0) @map("sort_order")
+  sentAt      DateTime? @map("sent_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  inquiry     Inquiry?  @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  customer    Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  @@map("scheduled_follow_ups")
+}

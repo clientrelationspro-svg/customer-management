@@ -1,0 +1,26 @@
+{
+  "name": "crm-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP Server for Customer Management System - WorkBuddy Integration",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc && node -e \"require('fs').chmodSync('dist/index.js', '755')\"",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "db:generate": "prisma generate"
+  },
+  "prisma": {
+    "schema": "prisma/schema.prisma"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@prisma/client": "^5.7.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "prisma": "^5.7.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.2"
+  }
+}

@@ -8,8 +8,8 @@ export const dynamic = 'force-dynamic';
 function getUserIdFromCookie() {
   try {
     const token = require('next/headers').cookies().get('auth_token')?.value;
-    if (!token) return null;
-    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+    if (!token || !token.startsWith('cm_')) return null;
+    const payload = JSON.parse(Buffer.from(token.slice(3), 'base64').toString());
     return payload.userId || null;
   } catch { return null; }
 }

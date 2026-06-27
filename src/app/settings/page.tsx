@@ -2,7 +2,7 @@
 
 import { Suspense } from 'react';
 import { useState, useEffect } from 'react';
-import { Users, Shield, UserPlus, Trash2, Settings as SettingsIcon, Crown, AlertCircle, LogOut, BookOpen, Plus, Edit3, Save, X } from 'lucide-react';
+import { Users, Shield, UserPlus, Trash2, Settings as SettingsIcon, Crown, AlertCircle, LogOut, BookOpen, Plus, Edit3, Save, X, Mail, RefreshCw, Check, Eye, EyeOff, Info, ExternalLink, UserCog, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 
@@ -35,6 +35,12 @@ function SettingsContent() {
   const [editForm, setEditForm] = useState({ name: '', email: '', role: 'user', description: '', company: '', contact: '', password: '' });
 
   const isAdmin = currentUser?.role === 'admin';
+  const [activeTab, setActiveTab] = useState<'users' | 'email' | 'skills'>('users');
+  const tabs = [
+    { key: 'users' as const, label: '用户管理', icon: <UserCog className="w-4 h-4" /> },
+    { key: 'email' as const, label: '邮箱配置', icon: <Mail className="w-4 h-4" /> },
+    { key: 'skills' as const, label: '员工技能', icon: <Wrench className="w-4 h-4" /> },
+  ];
 
   useEffect(() => {
     loadCurrentUser();
@@ -157,19 +163,171 @@ function SettingsContent() {
 
   const catLabels: Record<string, string> = { communication: '沟通话术', sales: '销售技巧', support: '客户服务', technical: '技术专业' };
 
+  // ========== 邮箱配置 ==========
+  interface EmailConfigItem {
+    id: string;
+    imapHost: string;
+    imapPort: number;
+    imapUser: string;
+    imapPass: string;
+    smtpHost: string;
+    smtpPort: number;
+    smtpUser: string;
+    smtpPass: string;
+    fromName: string;
+    isActive: boolean;
+    lastSyncAt?: string;
+  }
+  const [emailConfigs, setEmailConfigs] = useState<EmailConfigItem[]>([]);
+  const [showAddEmail, setShowAddEmail] = useState(false);
+  const [showGmailGuide, setShowGmailGuide] = useState(false);
+  const [showImapPass, setShowImapPass] = useState(false);
+  const [showSmtpPass, setShowSmtpPass] = useState(false);
+  const [emailForm, setEmailForm] = useState({
+    imapHost: '', imapPort: '993', imapUser: '', imapPass: '',
+    smtpHost: '', smtpPort: '465', smtpUser: '', smtpPass: '',
+    fromName: '',
+  });
+  const [editingEmailId, setEditingEmailId] = useState<string | null>(null);
+  const [emailSaving, setEmailSaving] = useState(false);
+  const [testingEmail, setTestingEmail] = useState(false);
+
+  useEffect(() => { if (currentUser) loadEmailConfigs(); }, [currentUser]);
+
+  const loadEmailConfigs = async () => {
+    try { const r = await fetch('/api/email-config'); const d = await r.json(); if (d.success) setEmailConfigs(d.data); } catch {}
+  };
+
+  const fillGmailPreset = () => {
+    setEmailForm(p => ({
+      ...p,
+      imapHost: 'imap.gmail.com', imapPort: '993',
+      smtpHost: 'smtp.gmail.com', smtpPort: '465',
+    }));
+  };
+
+  const handleSaveEmailConfig = async () => {
+    const f = emailForm;
+    if (!f.imapHost || !f.imapUser || !f.imapPass || !f.smtpHost || !f.smtpUser || !f.smtpPass) {
+      setError('请填写所有必填项（IMAP服务器/邮箱/密码 和 SMTP服务器/邮箱/密码 都需要填写）'); return;
+    }
+    setEmailSaving(true); setError(''); setSuccess('');
+    try {
+      const body = {
+        imapHost: f.imapHost, imapPort: parseInt(f.imapPort) || 993, imapUser: f.imapUser, imapPass: f.imapPass,
+        smtpHost: f.smtpHost, smtpPort: parseInt(f.smtpPort) || 465, smtpUser: f.smtpUser, smtpPass: f.smtpPass,
+        fromName: f.fromName || f.imapUser,
+      };
+
+      let res;
+      if (editingEmailId) {
+        res = await fetch(`/api/email-config/${editingEmailId}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+        });
+      } else {
+        res = await fetch('/api/email-config', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+        });
+      }
+
+      const data = await res.json();
+      
+      if (!res.ok || !data.success) {
+        setError(`❌ ${data.error || data.message || '操作失败 (HTTP ' + res.status + ')'}`);
+        return;
+      }
+
+      setSuccess(editingEmailId ? '邮箱配置已更新' : '✅ 邮箱配置已添加！');
+      setEditingEmailId(null);
+      setShowAddEmail(false);
+      loadEmailConfigs();
+      setEmailForm({ imapHost: '', imapPort: '993', imapUser: '', imapPass: '', smtpHost: '', smtpPort: '465', smtpUser: '', smtpPass: '', fromName: '' });
+    } catch (e: any) { 
+      setError('网络错误: ' + (e?.message || '请检查服务是否正常运行')); 
+    }
+    finally { setEmailSaving(false); }
+  };
+
+  const handleDeleteEmailConfig = async (id: string) => {
+    if (!confirm('确定删除此邮箱配置吗？')) return;
+    try {
+      const res = await fetch(`/api/email-config/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) { setSuccess('邮箱配置已删除'); loadEmailConfigs(); }
+      else setError(data.error || '删除失败');
+    } catch { setError('删除失败'); }
+  };
+
+  const handleTestEmail = async () => {
+    setTestingEmail(true); setError(''); setSuccess('');
+    try {
+      const res = await fetch('/api/email-send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: emailForm.imapUser,
+          subject: '🔧 客户管理系统 - 邮箱配置测试',
+          html: `<div style="font-family:sans-serif;padding:20px;"><h2>✅ 邮箱配置成功！</h2><p>如果你收到这封邮件，说明你的 SMTP 配置是正确的。</p><p>发件人: ${emailForm.fromName || emailForm.imapUser}</p><p style="color:#999;font-size:12px;">此邮件由客户管理系统自动发送</p></div>`,
+          config: {
+            host: emailForm.smtpHost, port: parseInt(emailForm.smtpPort),
+            user: emailForm.smtpUser, pass: emailForm.smtpPass,
+            fromName: emailForm.fromName || emailForm.imapUser,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (data.success) setSuccess('✅ 测试邮件发送成功！请检查收件箱');
+      else setError(data.error || '发送失败，请检查 SMTP 配置');
+    } catch { setError('发送失败'); }
+    finally { setTestingEmail(false); }
+  };
+
+  const handleEditEmailConfig = (config: EmailConfigItem) => {
+    setEditingEmailId(config.id);
+    setEmailForm({
+      imapHost: config.imapHost, imapPort: String(config.imapPort), imapUser: config.imapUser, imapPass: config.imapPass,
+      smtpHost: config.smtpHost, smtpPort: String(config.smtpPort), smtpUser: config.smtpUser, smtpPass: config.smtpPass,
+      fromName: config.fromName || '',
+    });
+    setShowAddEmail(true);
+  };
+
   if (loading) return <div className="text-center py-8">加载中...</div>;
 
   return (
     <div>
-      <div className="mb-8">
+      <div className="mb-6">
         <h1 className="text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-2">
           <SettingsIcon className="w-7 h-7 text-gray-600" />
           系统设置
         </h1>
-        <p className="text-sm text-gray-500 mt-1">管理系统用户和权限</p>
+        <p className="text-sm text-gray-500 mt-1">管理系统用户、邮箱和技能 · <span className="text-green-600 font-medium">v2.2</span></p>
       </div>
 
+      {/* 标签导航 */}
+      <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-xl">
+        {tabs.map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all flex-1 justify-center ${
+              activeTab === tab.key
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {tab.icon}
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* 全局提示信息 */}
+      {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">{error}</div>}
+      {success && <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-600">{success}</div>}
+
       {/* 当前用户信息 */}
+      {activeTab === 'users' && (<>
       <Card className="mb-6">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-3">
@@ -232,10 +390,6 @@ function SettingsContent() {
           </div>
         )}
       </Card>
-
-      {/* 提示信息 */}
-      {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">{error}</div>}
-      {success && <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-600">{success}</div>}
 
       {/* 用户管理（仅管理员可见） */}
       {isAdmin ? (
@@ -386,8 +540,11 @@ function SettingsContent() {
           </div>
         </Card>
       )}
+      </>
+      )}
 
-      {/* 员工技能 */}
+      {/* ===== 员工技能标签页 ===== */}
+      {activeTab === 'skills' && (
       <Card>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -472,6 +629,179 @@ function SettingsContent() {
           </div>
         )}
       </Card>
+      )}
+
+      {/* ===== 邮箱配置标签页 ===== */}
+      {activeTab === 'email' && (
+      <Card>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Mail className="w-5 h-5 text-blue-600" />
+            邮箱配置
+            <span className="text-sm text-gray-400">({emailConfigs.length}个)</span>
+          </h2>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowGmailGuide(!showGmailGuide)}
+              className="text-xs text-blue-600 hover:text-blue-700 underline flex items-center gap-1"
+            >
+              <Info className="w-3 h-3" />
+              Gmail 配置指南
+            </button>
+            <Button
+              onClick={() => { setShowAddEmail(!showAddEmail); setEditingEmailId(null); setEmailForm({ imapHost: '', imapPort: '993', imapUser: '', imapPass: '', smtpHost: '', smtpPort: '465', smtpUser: '', smtpPass: '', fromName: '' }); }}
+              size="sm" variant={showAddEmail ? 'secondary' : 'primary'}
+            >
+              <Plus className="w-4 h-4 mr-1" /> {showAddEmail ? '取消' : '添加邮箱'}
+            </Button>
+          </div>
+        </div>
+
+        {/* Gmail 配置指南 */}
+        {showGmailGuide && (
+          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+            <h3 className="font-semibold text-blue-800 mb-2">📧 Gmail 邮箱配置步骤</h3>
+            <ol className="list-decimal list-inside space-y-2 text-blue-700">
+              <li>
+                <strong>开启两步验证：</strong>
+                访问{' '}
+                <a href="https://myaccount.google.com/security" target="_blank" rel="noreferrer" className="underline inline-flex items-center gap-0.5">
+                  Google 安全设置 <ExternalLink className="w-3 h-3" />
+                </a>
+                ，开启"两步验证"
+              </li>
+              <li>
+                <strong>生成应用专用密码：</strong>
+                在 Google 账号 → 安全性 → "应用专用密码"中，选择"邮件"和"其他"，生成一个 <span className="font-mono bg-blue-100 px-1 rounded">16位应用密码</span>
+              </li>
+              <li>
+                <strong>开启 IMAP：</strong>
+                在 Gmail 设置 → "转发和 POP/IMAP"中，<strong>启用 IMAP</strong>
+              </li>
+              <li>
+                <strong>填写配置：</strong>
+                点击下方 <span className="font-semibold">"填入 Gmail 预设"</span> 按钮，然后填入你的 Gmail 地址和<strong>应用专用密码</strong>（不是登录密码）
+              </li>
+            </ol>
+            <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-yellow-700 text-xs">
+              ⚠️ <strong>重要：</strong>Gmail 不支持直接使用登录密码，必须使用<strong>应用专用密码</strong>。如果未开启两步验证，系统将无法连接 Gmail。
+            </div>
+          </div>
+        )}
+
+        {/* 添加/编辑表单 */}
+        {showAddEmail && (
+          <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
+            <div className="flex items-center gap-2 mb-1">
+              <button
+                onClick={fillGmailPreset}
+                className="text-xs px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition-colors flex items-center gap-1"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"/>
+                </svg>
+                填入 Gmail 预设
+              </button>
+              <span className="text-xs text-gray-400">（自动填入 imap.gmail.com / smtp.gmail.com）</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* IMAP 收件 */}
+              <div className="space-y-2 p-3 bg-white rounded-lg border border-gray-200">
+                <h4 className="text-sm font-medium text-gray-700">📥 收件服务器 (IMAP)</h4>
+                <div className="grid grid-cols-3 gap-2">
+                  <input value={emailForm.imapHost} onChange={e => setEmailForm(p => ({ ...p, imapHost: e.target.value }))}
+                    placeholder="IMAP 服务器 *" className="px-3 py-2 border border-gray-300 rounded-lg text-sm col-span-2" />
+                  <input value={emailForm.imapPort} onChange={e => setEmailForm(p => ({ ...p, imapPort: e.target.value }))}
+                    placeholder="端口" className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                </div>
+                <input value={emailForm.imapUser} onChange={e => setEmailForm(p => ({ ...p, imapUser: e.target.value, smtpUser: e.target.value, fromName: p.fromName || e.target.value }))}
+                  placeholder="邮箱地址 * (如 yourname@gmail.com)" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                <div className="relative">
+                  <input value={emailForm.imapPass} onChange={e => setEmailForm(p => ({ ...p, imapPass: e.target.value, smtpPass: e.target.value }))}
+                    type={showImapPass ? 'text' : 'password'} placeholder="IMAP 密码（应用专用密码） *" className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg text-sm" />
+                  <button onClick={() => setShowImapPass(!showImapPass)} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    {showImapPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* SMTP 发件 */}
+              <div className="space-y-2 p-3 bg-white rounded-lg border border-gray-200">
+                <h4 className="text-sm font-medium text-gray-700">📤 发件服务器 (SMTP)</h4>
+                <div className="grid grid-cols-3 gap-2">
+                  <input value={emailForm.smtpHost} onChange={e => setEmailForm(p => ({ ...p, smtpHost: e.target.value }))}
+                    placeholder="SMTP 服务器 *" className="px-3 py-2 border border-gray-300 rounded-lg text-sm col-span-2" />
+                  <input value={emailForm.smtpPort} onChange={e => setEmailForm(p => ({ ...p, smtpPort: e.target.value }))}
+                    placeholder="端口" className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                </div>
+                <input value={emailForm.smtpUser} onChange={e => setEmailForm(p => ({ ...p, smtpUser: e.target.value }))}
+                  placeholder="SMTP 用户名（同邮箱地址）" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                <div className="relative">
+                  <input value={emailForm.smtpPass} onChange={e => setEmailForm(p => ({ ...p, smtpPass: e.target.value }))}
+                    type={showSmtpPass ? 'text' : 'password'} placeholder="SMTP 密码 *" className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg text-sm" />
+                  <button onClick={() => setShowSmtpPass(!showSmtpPass)} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    {showSmtpPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <input value={emailForm.fromName} onChange={e => setEmailForm(p => ({ ...p, fromName: e.target.value }))}
+              placeholder="发件人显示名称（如：张三 - ABC Company）" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+
+            <div className="flex items-center gap-2">
+              <Button onClick={handleSaveEmailConfig} loading={emailSaving} size="sm">
+                <Save className="w-4 h-4 mr-1" /> {editingEmailId ? '更新配置' : '保存配置'}
+              </Button>
+              <Button variant="secondary" size="sm" onClick={handleTestEmail} loading={testingEmail} disabled={!emailForm.smtpHost || !emailForm.smtpUser || !emailForm.smtpPass}>
+                <RefreshCw className="w-4 h-4 mr-1" /> 测试发送
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* 已配置邮箱列表 */}
+        {emailConfigs.length === 0 ? (
+          <div className="text-center py-8 text-gray-400 text-sm">
+            <Mail className="w-12 h-12 mx-auto mb-3 opacity-30" />
+            暂无邮箱配置，点击"添加邮箱"绑定你的 Gmail 或其他邮箱
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {emailConfigs.map(config => (
+              <div key={config.id} className={`p-3 border rounded-lg flex items-center justify-between flex-wrap gap-2 ${config.isActive ? 'bg-green-50/50 border-green-200' : 'bg-white border-gray-200'}`}>
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs ${config.isActive ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
+                    <Mail className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-gray-900 truncate">{config.fromName || config.imapUser}</p>
+                      {config.isActive && <span className="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full flex items-center gap-0.5"><Check className="w-3 h-3" /> 活跃</span>}
+                    </div>
+                    <p className="text-xs text-gray-500 truncate">
+                      {config.imapUser} · IMAP {config.imapHost}:{config.imapPort} · SMTP {config.smtpHost}:{config.smtpPort}
+                    </p>
+                    {config.lastSyncAt && (
+                      <p className="text-xs text-gray-400">上次同步: {new Date(config.lastSyncAt).toLocaleString('zh-CN')}</p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => handleEditEmailConfig(config)} className="p-1.5 text-gray-400 hover:text-blue-600 rounded" title="编辑">
+                    <Edit3 className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => handleDeleteEmailConfig(config.id)} className="p-1.5 text-gray-400 hover:text-red-600 rounded" title="删除">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+      )}
     </div>
   );
 }

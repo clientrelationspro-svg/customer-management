@@ -11,7 +11,11 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "mcp:install": "cd mcp-server && npm install && npx prisma generate && npm run build",
+    "mcp:build": "cd mcp-server && npm run build",
+    "mcp:start": "cd mcp-server && npm start",
+    "mcp:dev": "cd mcp-server && npm run dev"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.2",
