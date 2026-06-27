@@ -1,22 +1,51 @@
 const API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
-const MODEL = 'deepseek-ai/DeepSeek-V3';
+
+// 模型优先级（按成本从低到高，自动切换可用模型）
+const MODELS = [
+  'Qwen/Qwen2.5-7B-Instruct',    // ¥0.35/百万tokens
+  'Qwen/Qwen3-8B',               // 新一代，性价比高
+  'deepseek-ai/DeepSeek-V3',     // ¥1/百万tokens，质量最好
+];
 
 function getApiKey(): string {
   return process.env.SILICONFLOW_API_KEY || '';
 }
 
 async function callAI(messages: { role: string; content: string }[]): Promise<string> {
-  const res = await fetch(API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${getApiKey()}`,
-    },
-    body: JSON.stringify({ model: MODEL, messages, temperature: 0.7, max_tokens: 2048 }),
-  });
-  if (!res.ok) throw new Error(`AI API error: ${res.status}`);
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content || '';
+  let lastError = '';
+
+  for (const model of MODELS) {
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getApiKey()}`,
+        },
+        body: JSON.stringify({ model, messages, temperature: 0.7, max_tokens: 2048 }),
+      });
+      const data = await res.json();
+
+      if (data.code === 30001) {
+        lastError = `账户余额不足，请在 https://siliconflow.cn 充值或激活优惠券`;
+        continue;
+      }
+      if (data.code === 30003) {
+        continue; // 模型不可用
+      }
+      if (!res.ok) {
+        lastError = `API 错误: HTTP ${res.status}`;
+        continue;
+      }
+
+      const content = data.choices?.[0]?.message?.content;
+      if (content) return content;
+    } catch (e: any) {
+      lastError = e?.message || '网络错误';
+    }
+  }
+
+  throw new Error(lastError || '所有模型均不可用');
 }
 
 // 提取邮件要点
@@ -42,12 +71,12 @@ export async function classifyEmail(subject: string, body: string): Promise<stri
 只返回逗号分隔标签，如: 询价,报价跟进`;
   try {
     const result = await callAI([{ role: 'user', content: prompt }]);
-    return result.replace(/[^a-zA-Z\u4e00-\u9fa5,]/g, '').split(',').map(t => t.trim()).filter(Boolean);
+    return result.split(/[,，]/).map((s: string) => s.trim()).filter(Boolean);
   } catch {}
-  return ['其他'];
+  return [];
 }
 
-// 生成回复草稿 — Markdown 格式
+// 生成回复草稿
 export async function generateReplyDraft(
   subject: string,
   body: string,
@@ -96,11 +125,5 @@ ${customerInfo ? `客户: ${customerInfo}` : ''}${instructions}
       return { subject: parsed.subject, body: parsed.body };
     }
   } catch {}
-  return { subject: `Re: ${subject}`, body: `## 感谢您的来信
-
-我们已收到您的询价，正在确认相关信息。
-
-> 如有紧急需求，请随时联系我们。
-
-**期待与您的合作！**` };
+  return { subject: `Re: ${subject}`, body: `## 感谢您的来信\n\n我们已收到您的询价，正在确认相关信息。\n\n> 如有紧急需求，请随时联系我们。\n\n**期待与您的合作！**` };
 }
