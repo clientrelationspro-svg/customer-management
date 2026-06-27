@@ -37,6 +37,41 @@ function SettingsContent() {
 
   const isAdmin = currentUser?.role === 'admin';
   const [activeTab, setActiveTab] = useState<'users' | 'email' | 'skills'>('users');
+
+  // 个人信息编辑
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({ name: '', businessRole: 'supplier', company: '', description: '', contact: '' });
+  const [profileSaving, setProfileSaving] = useState(false);
+
+  const handleEditProfile = () => {
+    setProfileForm({
+      name: currentUser?.name || '',
+      businessRole: currentUser?.businessRole || 'supplier',
+      company: currentUser?.company || '',
+      description: currentUser?.description || '',
+      contact: currentUser?.contact || '',
+    });
+    setEditingProfile(true);
+  };
+
+  const handleSaveProfile = async () => {
+    setProfileSaving(true); setError('');
+    try {
+      const res = await fetch('/api/auth/me/update', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(profileForm),
+      });
+      const d = await res.json();
+      if (d.success) {
+        setSuccess('个人信息已更新');
+        setEditingProfile(false);
+        loadCurrentUser();
+      } else {
+        setError(d.error || '更新失败');
+      }
+    } catch { setError('网络错误'); }
+    finally { setProfileSaving(false); }
+  };
   const tabs = [
     { key: 'users' as const, label: '用户管理', icon: <UserCog className="w-4 h-4" /> },
     { key: 'email' as const, label: '邮箱配置', icon: <Mail className="w-4 h-4" /> },
@@ -338,65 +373,108 @@ function SettingsContent() {
 
       {/* 当前用户信息 */}
       {activeTab === 'users' && (<>
+      {/* 个人信息卡片 */}
       <Card className="mb-6">
-        <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-              <span className="text-blue-600 font-bold text-sm">
-                {(currentUser?.name || currentUser?.email || '?')[0].toUpperCase()}
-              </span>
+            <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-lg">
+              {(currentUser?.name || currentUser?.email || '?')[0].toUpperCase()}
             </div>
             <div>
-              <p className="font-medium text-gray-900">{currentUser?.name || currentUser?.email}</p>
-              <p className="text-sm text-gray-500">{currentUser?.email} · 
-                <span className={`ml-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs ${isAdmin ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>
+              <h3 className="font-semibold text-gray-900">{currentUser?.name || currentUser?.email}</h3>
+              <p className="text-sm text-gray-500">
+                {currentUser?.email}
+                <span className={`ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs ${isAdmin ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>
                   {isAdmin ? <><Crown className="w-3 h-3" /> 管理员</> : '普通用户'}
                 </span>
               </p>
             </div>
           </div>
-          <Button variant="secondary" size="sm" onClick={handleLogout}>
-            <LogOut className="w-4 h-4 mr-1" /> 退出登录
-          </Button>
-        </div>
-      </Card>
-
-      {/* 业务角色选择 */}
-      <Card className="mb-6">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <h3 className="font-medium text-gray-900 text-sm">业务角色</h3>
-            <p className="text-xs text-gray-500 mt-0.5">选择你在贸易中的角色，系统将调整开发策略和阶段看板</p>
-          </div>
           <div className="flex items-center gap-2">
-            <select
-              value={currentUser?.businessRole || 'supplier'}
-              onChange={async (e) => {
-                const role = e.target.value;
-                try {
-                  await fetch('/api/auth/me/update', {
-                    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ businessRole: role }),
-                  });
-                  loadCurrentUser();
-                  setSuccess('业务角色已更新');
-                  setTimeout(() => setSuccess(''), 2000);
-                } catch { setError('更新失败'); }
-              }}
-              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="supplier">🏭 供应商</option>
-              <option value="buyer">🛒 采购商</option>
-              <option value="middleman">🤝 中间商</option>
-            </select>
+            {!editingProfile ? (
+              <Button variant="secondary" size="sm" onClick={handleEditProfile}>
+                <Edit3 className="w-3.5 h-3.5 mr-1" />编辑资料
+              </Button>
+            ) : (
+              <>
+                <Button size="sm" onClick={handleSaveProfile} loading={profileSaving}>
+                  <Save className="w-3.5 h-3.5 mr-1" />保存
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => setEditingProfile(false)}>
+                  <X className="w-3.5 h-3.5 mr-1" />取消
+                </Button>
+              </>
+            )}
+            <Button variant="secondary" size="sm" onClick={handleLogout}>
+              <LogOut className="w-4 h-4" />
+            </Button>
           </div>
         </div>
-        {currentUser?.businessRole && (
-          <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500">
-            当前模式：
-            {currentUser.businessRole === 'supplier' && '供应商 — 阶段看板：初步接触→报价谈判→样品寄送→合作成单'}
-            {currentUser.businessRole === 'buyer' && '采购商 — 阶段看板：供应商筛选→询价对比→样品检验→签约供货'}
-            {currentUser.businessRole === 'middleman' && '中间商 — 阶段看板：需求匹配→双方介绍→撮合洽谈→成交跟单'}
+
+        {editingProfile ? (
+          /* === 编辑模式 === */
+          <div className="space-y-3 border-t border-gray-100 pt-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">姓名</label>
+                <input type="text" value={profileForm.name} onChange={e => setProfileForm(p => ({ ...p, name: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="你的姓名" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">业务角色</label>
+                <select value={profileForm.businessRole} onChange={e => setProfileForm(p => ({ ...p, businessRole: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
+                  <option value="supplier">🏭 供应商（推销产品）</option>
+                  <option value="buyer">🛒 采购商（寻找货源）</option>
+                  <option value="middleman">🤝 中间商（撮合双方）</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">企业介绍</label>
+              <textarea value={profileForm.company} onChange={e => setProfileForm(p => ({ ...p, company: e.target.value }))} rows={2}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-y"
+                placeholder="如：ABC Metal Co., Ltd. 成立于2005年，主营钽铌矿贸易，拥有非洲稳定矿源..." />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">业务介绍</label>
+              <textarea value={profileForm.description} onChange={e => setProfileForm(p => ({ ...p, description: e.target.value }))} rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-y"
+                placeholder="如：专注有色金属国际贸易，覆盖欧美及东南亚市场，年交易额超5000万美元..." />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">联系方式</label>
+              <input type="text" value={profileForm.contact} onChange={e => setProfileForm(p => ({ ...p, contact: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                placeholder="如：电话: +86 138xxxx, WhatsApp: +86 138xxxx, 微信: trader_wang" />
+            </div>
+          </div>
+        ) : (
+          /* === 展示模式 === */
+          <div className="border-t border-gray-100 pt-4 space-y-2">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-gray-400 w-16 flex-shrink-0">角色</span>
+              <span className="font-medium">
+                {currentUser?.businessRole === 'supplier' ? '🏭 供应商' : currentUser?.businessRole === 'buyer' ? '🛒 采购商' : currentUser?.businessRole === 'middleman' ? '🤝 中间商' : '未设置'}
+              </span>
+              <span className="text-xs text-gray-400">
+                {currentUser?.businessRole === 'supplier' && '· 阶段：初步接触→报价谈判→样品寄送→合作成单'}
+                {currentUser?.businessRole === 'buyer' && '· 阶段：供应商筛选→询价对比→样品检验→签约供货'}
+                {currentUser?.businessRole === 'middleman' && '· 阶段：需求匹配→双方介绍→撮合洽谈→成交跟单'}
+              </span>
+            </div>
+            <div className="flex items-start gap-2 text-sm">
+              <span className="text-gray-400 w-16 flex-shrink-0">企业</span>
+              <span className={currentUser?.company ? 'text-gray-700' : 'text-gray-300'}>{currentUser?.company || '未填写企业介绍'}</span>
+            </div>
+            <div className="flex items-start gap-2 text-sm">
+              <span className="text-gray-400 w-16 flex-shrink-0">业务</span>
+              <span className={currentUser?.description ? 'text-gray-700' : 'text-gray-300'}>{currentUser?.description || '未填写业务介绍'}</span>
+            </div>
+            <div className="flex items-start gap-2 text-sm">
+              <span className="text-gray-400 w-16 flex-shrink-0">联系方式</span>
+              <span className={currentUser?.contact ? 'text-gray-700' : 'text-gray-300'}>{currentUser?.contact || '未填写联系方式'}</span>
+            </div>
           </div>
         )}
       </Card>
