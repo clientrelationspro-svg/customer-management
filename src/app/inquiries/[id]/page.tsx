@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Send, RefreshCw, Save, UserPlus, CheckCircle, AlertCircle, Mail, Package, Calendar, Globe, Trash2, Sparkles, X } from 'lucide-react';
+import { ArrowLeft, Send, RefreshCw, Save, UserPlus, CheckCircle, Mail, Package, Globe, Trash2, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import MarkdownEditor from '@/components/ui/MarkdownEditor';
@@ -38,6 +38,7 @@ export default function InquiryDetailPage() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [userNotes, setUserNotes] = useState('');
   const [showNotesInput, setShowNotesInput] = useState(false);
+  const [aiFeedback, setAiFeedback] = useState('');
   const [attachments, setAttachments] = useState<{ url: string; filename: string; size: number; type: string }[]>([]);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [scheduleMode, setScheduleMode] = useState(false);
@@ -66,7 +67,10 @@ export default function InquiryDetailPage() {
     if (d.success) setScheduledFollowUps(d.data || []);
   };
 
-  useEffect(() => { fetchInquiry(); fetchFollowUps(); fetch('/api/customers?limit=200').then(r => r.json()).then(d => { if (d.success) setCustomers(d.data || []); }).catch(() => {}); }, [id]);
+  useEffect(() => {
+    fetchInquiry(); fetchFollowUps();
+    fetch('/api/customers?limit=200').then(r => r.json()).then(d => { if (d.success) setCustomers(d.data || []); }).catch(() => {});
+  }, [id]);
 
   const handleSaveDraft = async () => {
     const htmlBody = formatEmailBody(editBody);
@@ -80,13 +84,25 @@ export default function InquiryDetailPage() {
 
   const handleRegenerate = async () => {
     setRegenerating(true);
-    const body: any = { regenerateDraft: true, customerId: assignCustomerId || null };
-    if (userNotes.trim()) body.userNotes = userNotes.trim();
-    const res = await fetch(`/api/inquiries/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    setRegenerating(false);
-    if (res.ok) {
+    setAiFeedback('');
+    try {
+      const body: any = { regenerateDraft: true, customerId: assignCustomerId || null };
+      if (userNotes.trim()) body.userNotes = userNotes.trim();
+      const res = await fetch(`/api/inquiries/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const d = await res.json();
-      if (d.success) { setEditSubject(d.data.aiDraftSubject); setEditBody(d.data.aiDraftBody); }
+      if (res.ok && d.success) {
+        setEditSubject(d.data.aiDraftSubject);
+        setEditBody(d.data.aiDraftBody);
+        setShowNotesInput(false);
+        setAiFeedback('✅ AI 草稿已生成，可直接编辑修改');
+        setTimeout(() => setAiFeedback(''), 3000);
+      } else {
+        setAiFeedback(`❌ ${d.error || '生成失败，请重试'}`);
+      }
+    } catch {
+      setAiFeedback('❌ 网络错误，请检查连接');
+    } finally {
+      setRegenerating(false);
     }
   };
 
@@ -165,20 +181,18 @@ export default function InquiryDetailPage() {
                 <div className="bg-purple-50 rounded-lg p-3 text-sm"><span className="text-xs text-purple-500">交期要求</span><p className="font-medium">{inquiry.deliveryRequired || '-'}</p></div>
               </div>
               {inquiry.aiSummary && (
-                <div className="bg-blue-50 rounded-lg p-3 text-sm text-blue-800">
-                  <span className="text-xs text-blue-500 block mb-1">📝 AI 总结</span>{inquiry.aiSummary}
-                </div>
+                <div className="bg-blue-50 rounded-lg p-3 text-sm text-blue-800"><span className="text-xs text-blue-500 block mb-1">📝 AI 总结</span>{inquiry.aiSummary}</div>
               )}
             </Card>
           )}
 
-          {/* === 回复编辑器（简化版）=== */}
+          {/* === 回复编辑器 === */}
           {!isReplied && (
             <Card>
               <h2 className="font-semibold mb-3 flex items-center gap-2"><Send className="w-5 h-5 text-green-600" />回复邮件</h2>
 
-              {/* AI 生成草稿 */}
-              {!showNotesInput ? (
+              {/* AI 生成草稿按钮区 */}
+              {!showNotesInput ? (<>
                 <div className="flex items-center gap-2 mb-4 flex-wrap">
                   <Button size="sm" onClick={handleRegenerate} loading={regenerating} className="bg-purple-600 hover:bg-purple-700">
                     <Sparkles className="w-3 h-3 mr-1" />AI 生成回复草稿
@@ -192,7 +206,7 @@ export default function InquiryDetailPage() {
                     </Button>
                   )}
                 </div>
-              ) : (
+              </>) : (
                 <div className="mb-4 p-3 bg-purple-50 rounded-lg border border-purple-200">
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-xs font-medium text-purple-700">💡 回复要点（可选，帮助 AI 生成更精准的回复）</label>
@@ -210,6 +224,13 @@ export default function InquiryDetailPage() {
                 </div>
               )}
 
+              {/* 反馈信息 */}
+              {aiFeedback && (
+                <div className={`mb-3 text-xs p-2 rounded-lg ${aiFeedback.startsWith('✅') ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'}`}>
+                  {aiFeedback}
+                </div>
+              )}
+
               {/* 编辑区 */}
               <div className="space-y-3">
                 <input type="text" value={editSubject} onChange={e => setEditSubject(e.target.value)}
@@ -223,8 +244,7 @@ export default function InquiryDetailPage() {
                       setUploadingFile(true);
                       const form = new FormData(); form.append('file', file);
                       const r = await fetch(`/api/inquiries/${id}/upload`, { method: 'POST', body: form });
-                      const d = await r.json();
-                      setUploadingFile(false);
+                      const d = await r.json(); setUploadingFile(false);
                       if (d.success) setAttachments(prev => [...prev, { filename: file.name, url: d.data.url, size: file.size, type: file.type }]);
                     }} />
                   </label>
@@ -236,21 +256,14 @@ export default function InquiryDetailPage() {
                   ))}
                 </div>
 
-                <MarkdownEditor value={editBody} onChange={setEditBody}
-                  uploadUrl={`/api/inquiries/${id}/upload`}
-                  placeholder="使用 Markdown 编写回复邮件..." />
+                <MarkdownEditor value={editBody} onChange={setEditBody} uploadUrl={`/api/inquiries/${id}/upload`} placeholder="使用 Markdown 编写回复邮件..." />
               </div>
 
-              {/* 操作按钮 */}
               <div className="flex flex-wrap items-center justify-between gap-2 pt-3 mt-3 border-t border-gray-100">
                 <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
-                  <label className="flex items-center gap-1 cursor-pointer">
-                    <input type="checkbox" checked={scheduleMode} onChange={e => setScheduleMode(e.target.checked)} className="rounded" />⏰ 定时发送
-                  </label>
+                  <label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={scheduleMode} onChange={e => setScheduleMode(e.target.checked)} className="rounded" />⏰ 定时发送</label>
                   {scheduleMode && <input type="datetime-local" value={scheduledTime} onChange={e => setScheduledTime(e.target.value)} className="px-2 py-1 border border-gray-300 rounded text-xs" />}
-                  <label className="flex items-center gap-1 cursor-pointer">
-                    <input type="checkbox" checked={followUpEnabled} onChange={e => setFollowUpEnabled(e.target.checked)} className="rounded" />🔔 持续跟进
-                  </label>
+                  <label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={followUpEnabled} onChange={e => setFollowUpEnabled(e.target.checked)} className="rounded" />🔔 持续跟进</label>
                   {followUpEnabled && <span className="flex items-center gap-1">每隔 <input type="number" value={followUpDays} onChange={e => setFollowUpDays(e.target.value)} className="w-12 px-1 py-0.5 border border-gray-300 rounded text-xs text-center" min="1" /> 天提醒</span>}
                 </div>
                 <div className="flex gap-2">
@@ -263,14 +276,13 @@ export default function InquiryDetailPage() {
             </Card>
           )}
 
-          {/* 定时跟进邮件序列 */}
+          {/* 定时跟进序列 */}
           <Card>
             <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <h2 className="font-semibold flex items-center gap-2">⏰ 定时跟进序列 ({scheduledFollowUps.length})</h2>
               <div className="flex items-center gap-1">
                 <SequencePromptBuilder customerId={inquiry?.customer?.id} inquirySubject={inquiry?.subject} inquiryBody={inquiry?.body} inquiryId={inquiry?.id} onImport={() => fetchFollowUps()} />
-                <button onClick={() => setShowFollowUpForm(!showFollowUpForm)}
-                  className="px-2 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg">+ 手动添加</button>
+                <button onClick={() => setShowFollowUpForm(!showFollowUpForm)} className="px-2 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg">+ 手动添加</button>
               </div>
             </div>
             {showFollowUpForm && (
@@ -299,12 +311,11 @@ export default function InquiryDetailPage() {
           </Card>
         </div>
 
-        {/* 右侧：客户匹配 + 已发送回复 */}
+        {/* 右侧栏 */}
         <div className="space-y-6">
           <Card>
             <h2 className="font-semibold mb-3 flex items-center gap-2"><UserPlus className="w-5 h-5 text-blue-600" />客户匹配</h2>
-            <select value={assignCustomerId} onChange={e => setAssignCustomerId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-2">
+            <select value={assignCustomerId} onChange={e => setAssignCustomerId(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-2">
               <option value="">选择关联客户</option>
               {customers.map((c: any) => (
                 <option key={c.id} value={c.id}>{c.companyName}{c.country ? ` (${c.country})` : ''}</option>
@@ -312,13 +323,11 @@ export default function InquiryDetailPage() {
             </select>
             {inquiry.customer && (
               <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg text-sm">
-                <CheckCircle className="w-4 h-4 text-blue-600" />
-                <span className="text-blue-700">已关联: {inquiry.customer.companyName}</span>
+                <CheckCircle className="w-4 h-4 text-blue-600" /><span className="text-blue-700">已关联: {inquiry.customer.companyName}</span>
               </div>
             )}
           </Card>
 
-          {/* 已发送回复 */}
           <Card>
             <h2 className="font-semibold mb-3">已发送回复 ({inquiry.replies?.length || 0})</h2>
             {inquiry.replies?.length === 0 ? (
@@ -332,8 +341,7 @@ export default function InquiryDetailPage() {
                       <span className="text-sm font-medium">{r.subject}</span>
                       <span className="text-xs text-gray-500 ml-auto">{new Date(r.sentAt).toLocaleString('zh-CN')}</span>
                     </div>
-                    <div className="text-sm text-gray-700 leading-relaxed"
-                      dangerouslySetInnerHTML={{ __html: formatEmailBody(r.body) }} />
+                    <div className="text-sm text-gray-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: formatEmailBody(r.body) }} />
                   </div>
                 ))}
               </div>
