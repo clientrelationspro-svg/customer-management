@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Trash2, Edit3, CheckCircle, Send, Phone, Mail, MessageCircle, X, Clock, Download, Upload, FileText } from 'lucide-react';
+import { Plus, Trash2, Edit3, CheckCircle, Send, Phone, Mail, MessageCircle, X, Clock, Download, Upload, FileText, Save } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { logActivity } from '@/lib/activity';
@@ -44,8 +44,10 @@ export default function FollowUpScripts({
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [originalContent, setOriginalContent] = useState('');
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [sentIds, setSentIds] = useState<Set<string>>(new Set());
+  const [editError, setEditError] = useState('');
   const [formData, setFormData] = useState({ type: 'whatsapp' as Script['type'], title: '', content: '', nextFollowUpDate: '' });
 
   // 导入导出状态
@@ -194,16 +196,19 @@ export default function FollowUpScripts({
         body: JSON.stringify(formData),
       });
       if (res.ok) {
-        // 如果设置了下次开发日期，同步到开发记录
         if (formData.nextFollowUpDate) {
           await syncNextFollowUpDate(formData.nextFollowUpDate);
         }
         setEditingId(null);
+        setEditError('');
         setFormData({ type: 'whatsapp', title: '', content: '', nextFollowUpDate: '' });
         fetchScripts();
+      } else {
+        const d = await res.json().catch(() => ({}));
+        setEditError(d.error || '保存失败，请重试');
       }
     } catch (error) {
-      console.error('Error updating script:', error);
+      setEditError('网络错误，请检查连接后重试');
     }
   };
 
@@ -284,12 +289,23 @@ export default function FollowUpScripts({
 
   const startEdit = (script: Script) => {
     setEditingId(script.id);
+    setOriginalContent(script.content);
+    setEditError('');
     setFormData({
       type: script.type,
       title: script.title,
       content: script.content,
       nextFollowUpDate: script.nextFollowUpDate || '',
     });
+  };
+
+  const cancelEdit = () => {
+    if (formData.content !== originalContent || formData.title !== scripts.find(s => s.id === editingId)?.title) {
+      if (!confirm('内容已修改，确定放弃编辑？')) return;
+    }
+    setEditingId(null);
+    setEditError('');
+    setFormData({ type: 'whatsapp', title: '', content: '', nextFollowUpDate: '' });
   };
 
   const getTypeIcon = (type: Script['type']) => {
@@ -400,12 +416,12 @@ content: |
         </div>
       )}
 
-      {/* 添加/编辑表单 */}
-      {(showAddForm || editingId) && (
+      {/* 新建话术表单（仅添加时显示，编辑改为 inline） */}
+      {showAddForm && !editingId && (
         <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-medium text-blue-900">{editingId ? '编辑话术' : '新建话术'}</h3>
-            <button onClick={() => { setShowAddForm(false); setEditingId(null); }} className="p-1 hover:bg-blue-100 rounded">
+            <h3 className="font-medium text-blue-900">新建话术</h3>
+            <button onClick={() => { setShowAddForm(false); setFormData({ type: 'whatsapp', title: '', content: '', nextFollowUpDate: '' }); }} className="p-1 hover:bg-blue-100 rounded">
               <X className="w-4 h-4 text-blue-600" />
             </button>
           </div>
@@ -413,11 +429,8 @@ content: |
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">话术类型</label>
-                <select
-                  value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value as Script['type'] })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                >
+                <select value={formData.type} onChange={(e) => setFormData({ ...formData, type: e.target.value as Script['type'] })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
                   <option value="whatsapp">WhatsApp 话术</option>
                   <option value="email">邮件话术</option>
                   <option value="phone">电话话术</option>
@@ -425,44 +438,22 @@ content: |
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">话术标题</label>
-                <input
-                  type="text"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                  placeholder="如: 初次问候、报价开发..."
-                />
+                <input type="text" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="如: 初次问候、报价开发..." />
               </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">话术内容</label>
-              <MarkdownEditor
-                value={formData.content}
-                onChange={(val) => setFormData({ ...formData, content: val })}
-                placeholder={
-                  formData.type === 'whatsapp' ? '您好，我是...关于...想跟您沟通一下...' :
-                  formData.type === 'email' ? '您好，\n\n关于...\n\n期待您的回复。\n\n此致' :
-                  '您好，我是...想跟您电话沟通关于...'
-                }
-                rows={5}
-              />
+              <MarkdownEditor value={formData.content} onChange={(val) => setFormData({ ...formData, content: val })}
+                placeholder={formData.type === 'whatsapp' ? '您好，我是...关于...想跟您沟通一下...' : formData.type === 'email' ? '您好，\n\n关于...\n\n期待您的回复。\n\n此致' : '您好，我是...想跟您电话沟通关于...'}
+                rows={5} />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">下次开发日期</label>
-              <input
-                type="date"
-                value={formData.nextFollowUpDate}
-                onChange={(e) => setFormData({ ...formData, nextFollowUpDate: e.target.value })}
-                className="w-full md:w-64 px-3 py-2 border border-gray-300 rounded-lg text-sm"
-              />
-              <p className="text-xs text-gray-500 mt-1">发送时将同步更新开发记录的下次开发日期</p>
+              <input type="date" value={formData.nextFollowUpDate} onChange={(e) => setFormData({ ...formData, nextFollowUpDate: e.target.value })}
+                className="w-full md:w-64 px-3 py-2 border border-gray-300 rounded-lg text-sm" />
             </div>
-            <div className="flex gap-2">
-              <Button onClick={editingId ? () => handleUpdate(editingId) : handleAdd}>
-                {editingId ? '保存修改' : '添加话术'}
-              </Button>
-              <Button variant="secondary" onClick={() => { setShowAddForm(false); setEditingId(null); }}>取消</Button>
-            </div>
+            <Button onClick={handleAdd}>添加话术</Button>
           </div>
         </div>
       )}
@@ -470,79 +461,113 @@ content: |
       {/* 话术列表 */}
       {loading ? (
         <div className="text-center py-4 text-gray-500">加载中...</div>
-      ) : scripts.length === 0 ? (
+      ) : scripts.length === 0 && !showAddForm ? (
         <div className="text-center py-6 text-gray-500">暂无开发话术，点击"新话术"添加</div>
       ) : (
         <div className="space-y-3">
-          {scripts.map((script) => (
-            <div
-              key={script.id}
-              className={`p-4 border rounded-lg transition-colors ${script.lastSentAt ? 'border-green-200 bg-green-50/30' : 'border-gray-200 hover:border-blue-300'}`}
-            >
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  {getTypeIcon(script.type)}
-                  <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600">
-                    {getTypeLabel(script.type)}
-                  </span>
-                  <h4 className="font-medium text-gray-900">{script.title}</h4>
+          {scripts.map((script) => {
+            const isEditing = editingId === script.id;
+            return isEditing ? (
+              /* ====== 原地编辑模式 ====== */
+              <div key={script.id} className="p-4 border-2 border-blue-400 rounded-lg bg-blue-50/30 shadow-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    {getTypeIcon(script.type)}
+                    <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700 font-medium">
+                      {getTypeLabel(script.type)} · 编辑中
+                    </span>
+                  </div>
+                  <button onClick={cancelEdit} className="p-1 hover:bg-blue-100 rounded text-blue-600" title="取消编辑">
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
+
+                {editError && (
+                  <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-600">{editError}</div>
+                )}
+
+                <div className="space-y-3">
+                  <input type="text" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    className="w-full px-3 py-2 border border-blue-300 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="话术标题" />
+
+                  <MarkdownEditor value={formData.content} onChange={(val) => setFormData({ ...formData, content: val })}
+                    placeholder={script.type === 'whatsapp' ? 'WhatsApp 消息内容...' : script.type === 'email' ? '邮件正文...' : '电话沟通要点...'}
+                    rows={script.type === 'email' ? 8 : 5} />
+
+                  <div className="flex items-center gap-2">
+                    <input type="date" value={formData.nextFollowUpDate} onChange={(e) => setFormData({ ...formData, nextFollowUpDate: e.target.value })}
+                      className="px-3 py-1.5 border border-gray-300 rounded-lg text-xs" />
+                    <span className="text-xs text-gray-400">下次开发日期</span>
+                  </div>
+
+                  <div className="flex gap-2 pt-1">
+                    <Button size="sm" onClick={() => handleUpdate(script.id)}><Save className="w-3 h-3 mr-1" />保存修改</Button>
+                    <Button size="sm" variant="secondary" onClick={cancelEdit}>取消</Button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* ====== 预览模式 ====== */
+              <div
+                key={script.id}
+                className={`p-4 border rounded-lg transition-colors ${script.lastSentAt ? 'border-green-200 bg-green-50/30' : 'border-gray-200 hover:border-blue-300'}`}
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    {getTypeIcon(script.type)}
+                    <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600">
+                      {getTypeLabel(script.type)}
+                    </span>
+                    <h4 className="font-medium text-gray-900">{script.title}</h4>
+                  </div>
+                  {!isArchived && (
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => startEdit(script)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="编辑">
+                      <Edit3 className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => handleDelete(script.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="删除">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  )}
+                </div>
+
+                {/* 话术内容 */}
+                <div className="text-sm text-gray-600 mb-3 pl-6 border-l-2 border-gray-200"
+                  dangerouslySetInnerHTML={{ __html: markdownToHtml(script.content) }} />
+
+                {/* 时间信息行 */}
+                <div className="flex flex-wrap items-center gap-3 mb-3 pl-6 text-xs text-gray-500">
+                  {script.lastSentAt && (
+                    <span className="flex items-center gap-1 text-green-600 font-medium">
+                      <Clock className="w-3 h-3" />上次发送: {formatDateTime(script.lastSentAt)}
+                    </span>
+                  )}
+                  {script.nextFollowUpDate && (
+                    <span className="flex items-center gap-1">📅 下次开发: {new Date(script.nextFollowUpDate).toLocaleDateString('zh-CN')}</span>
+                  )}
+                  <span className="text-gray-400">创建: {formatDateTime(script.createdAt)}</span>
+                </div>
+
+                {/* 操作按钮 */}
                 {!isArchived && (
-                <div className="flex items-center gap-1">
-                  <button onClick={() => startEdit(script)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="编辑">
-                    <Edit3 className="w-4 h-4" />
+                <div className="flex items-center gap-2 pl-6">
+                  {sentIds.has(script.id) ? (
+                    <span className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-500 bg-gray-100 rounded-lg">
+                      <CheckCircle className="w-4 h-4" />已发送
+                    </span>
+                  ) : (
+                  <button onClick={() => handleSend(script)} disabled={sendingId === script.id}
+                    className={`inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-white rounded-lg transition-colors disabled:opacity-50 ${getSendButtonColor(script.type)}`}>
+                    <Send className="w-4 h-4" />{sendingId === script.id ? '发送中...' : `发送${getTypeLabel(script.type)}`}
                   </button>
-                  <button onClick={() => handleDelete(script.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="删除">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  )}
                 </div>
                 )}
               </div>
-
-              {/* 话术内容 */}
-              <div className="text-sm text-gray-600 mb-3 pl-6 border-l-2 border-gray-200"
-                dangerouslySetInnerHTML={{ __html: markdownToHtml(script.content) }} />
-
-              {/* 时间信息行 */}
-              <div className="flex flex-wrap items-center gap-3 mb-3 pl-6 text-xs text-gray-500">
-                {script.lastSentAt && (
-                  <span className="flex items-center gap-1 text-green-600 font-medium">
-                    <Clock className="w-3 h-3" />
-                    上次发送: {formatDateTime(script.lastSentAt)}
-                  </span>
-                )}
-                {script.nextFollowUpDate && (
-                  <span className="flex items-center gap-1">
-                    📅 下次开发: {new Date(script.nextFollowUpDate).toLocaleDateString('zh-CN')}
-                  </span>
-                )}
-                <span className="text-gray-400">
-                  创建: {formatDateTime(script.createdAt)}
-                </span>
-              </div>
-
-              {/* 操作按钮 */}
-              {!isArchived && (
-              <div className="flex items-center gap-2 pl-6">
-                {sentIds.has(script.id) ? (
-                  <span className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-500 bg-gray-100 rounded-lg">
-                    <CheckCircle className="w-4 h-4" />
-                    已发送
-                  </span>
-                ) : (
-                <button
-                  onClick={() => handleSend(script)}
-                  disabled={sendingId === script.id}
-                  className={`inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-white rounded-lg transition-colors disabled:opacity-50 ${getSendButtonColor(script.type)}`}
-                >
-                  <Send className="w-4 h-4" />
-                  {sendingId === script.id ? '发送中...' : `发送${getTypeLabel(script.type)}`}
-                </button>
-                )}
-              </div>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </Card>
