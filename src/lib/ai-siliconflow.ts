@@ -1,20 +1,28 @@
 const API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
 
-// 模型优先级（按成本从低到高，自动切换可用模型）
-const MODELS = [
-  'Qwen/Qwen2.5-7B-Instruct',    // ¥0.35/百万tokens
-  'Qwen/Qwen3-8B',               // 新一代，性价比高
-  'deepseek-ai/DeepSeek-V3',     // ¥1/百万tokens，质量最好
-];
+// 按任务分配模型（优先使用免费/低价模型）
+const MODEL_CONFIG = {
+  // 日常简单任务：分类、提取 → 用最便宜的
+  classification: ['Qwen/Qwen2.5-7B-Instruct'],
+  extraction: ['Qwen/Qwen2.5-7B-Instruct'],
+  // 邮件草稿生成 → 中等模型即可
+  draft: ['Qwen/Qwen2.5-7B-Instruct', 'Qwen/Qwen3-8B', 'Qwen/Qwen2.5-14B-Instruct'],
+  // Prompt 生成 → 便宜模型
+  prompt: ['Qwen/Qwen2.5-7B-Instruct'],
+};
 
 function getApiKey(): string {
   return process.env.SILICONFLOW_API_KEY || '';
 }
 
-async function callAI(messages: { role: string; content: string }[]): Promise<string> {
+async function callAI(
+  messages: { role: string; content: string }[],
+  task: keyof typeof MODEL_CONFIG = 'draft'
+): Promise<string> {
+  const models = MODEL_CONFIG[task] || MODEL_CONFIG.draft;
   let lastError = '';
 
-  for (const model of MODELS) {
+  for (const model of models) {
     try {
       const res = await fetch(API_URL, {
         method: 'POST',
@@ -27,10 +35,10 @@ async function callAI(messages: { role: string; content: string }[]): Promise<st
       const data = await res.json();
 
       if (data.code === 30001) {
-        lastError = `账户余额不足，请在 https://siliconflow.cn 充值或激活优惠券`;
+        lastError = `账户余额不足，请在 https://siliconflow.cn 充值`;
         continue;
       }
-      if (data.code === 30003) {
+      if (data.code === 30003 || data.code === 30007) {
         continue; // 模型不可用
       }
       if (!res.ok) {
@@ -57,7 +65,7 @@ export async function extractInquiryPoints(
 邮件: ${subject}\n${body.slice(0, 3000)}
 {"productInterested":"产品","quantity":"数量","deliveryRequired":"交期","summary":"20字内总结"}`;
   try {
-    const result = await callAI([{ role: 'user', content: prompt }]);
+    const result = await callAI([{ role: 'user', content: prompt }], 'extraction');
     const jsonMatch = result.match(/\{[\s\S]*\}/);
     if (jsonMatch) return JSON.parse(jsonMatch[0]);
   } catch {}
@@ -70,7 +78,7 @@ export async function classifyEmail(subject: string, body: string): Promise<stri
 邮件: ${subject}\n${body.slice(0, 2000)}
 只返回逗号分隔标签，如: 询价,报价跟进`;
   try {
-    const result = await callAI([{ role: 'user', content: prompt }]);
+    const result = await callAI([{ role: 'user', content: prompt }], 'classification');
     return result.split(/[,，]/).map((s: string) => s.trim()).filter(Boolean);
   } catch {}
   return [];
@@ -118,7 +126,7 @@ ${customerInfo ? `客户: ${customerInfo}` : ''}${instructions}
 {"subject":"Re: 原标题","body":"Markdown格式正文，段落间用空行分隔"}`;
 
   try {
-    const result = await callAI([{ role: 'user', content: prompt }]);
+    const result = await callAI([{ role: 'user', content: prompt }], 'draft');
     const jsonMatch = result.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
