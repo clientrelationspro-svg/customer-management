@@ -7,13 +7,35 @@ import { Button } from '@/components/ui/Button';
 interface DataItem { id: string; source: string; label: string; content: string; date?: string; }
 interface Props { customerId?: string; inquirySubject?: string; inquiryBody?: string; inquiryId?: string; onImport?: () => void; }
 
+// 渐进式间隔（累积天数）：第1封后3天→第2封后7天→第3封后10天...
+const PROGRESSIVE_INTERVALS = [3, 7, 10, 17, 27];
+
+function getIntervals(count: number): number[] {
+  return PROGRESSIVE_INTERVALS.slice(0, count);
+}
+
+function calcDates(startDate: string, count: number): string[] {
+  if (!startDate) return [];
+  const dates: string[] = [];
+  const base = new Date(startDate);
+  const intervals = getIntervals(count);
+  let cumulative = 0;
+  for (let i = 0; i < count; i++) {
+    if (i > 0) cumulative += intervals[i - 1];
+    const d = new Date(base);
+    d.setDate(d.getDate() + cumulative);
+    dates.push(d.toISOString().split('T')[0]);
+  }
+  return dates;
+}
+
 const STRATEGIES = [
-  { key: 'new_inquiry', label: '新询价跟进', desc: '感谢→报价→确认', role: 'seller', count: 3, interval: 3, tone: 'professional' },
-  { key: 'quote_followup', label: '报价催单', desc: '提醒→限时优惠', role: 'seller', count: 2, interval: 2, tone: 'urgent' },
-  { key: 'reactivation', label: '沉寂再激活', desc: '关怀→新品推荐', role: 'seller', count: 2, interval: 5, tone: 'friendly' },
-  { key: 'payment', label: '付款提醒', desc: '提醒→通知→通牒', role: 'seller', count: 3, interval: 7, tone: 'professional' },
-  { key: 'buyer', label: '采购询价', desc: '询价→报价请求', role: 'buyer', count: 2, interval: 3, tone: 'professional' },
-  { key: 'middleman', label: '中间商撮合', desc: '介绍→对接', role: 'middleman', count: 2, interval: 3, tone: 'friendly' },
+  { key: 'new_inquiry', label: '新询价跟进', desc: '感谢→报价→确认', role: 'seller', count: 3, tone: 'professional', descExtra: '3→7天' },
+  { key: 'quote_followup', label: '报价催单', desc: '提醒→限时优惠', role: 'seller', count: 2, tone: 'urgent', descExtra: '3→7天' },
+  { key: 'reactivation', label: '沉寂再激活', desc: '关怀→新品推荐', role: 'seller', count: 3, tone: 'friendly', descExtra: '3→7→10天' },
+  { key: 'payment', label: '付款提醒', desc: '提醒→通知→通牒', role: 'seller', count: 3, tone: 'professional', descExtra: '3→7→10天' },
+  { key: 'buyer', label: '采购询价', desc: '询价→报价请求', role: 'buyer', count: 2, tone: 'professional', descExtra: '3→7天' },
+  { key: 'middleman', label: '中间商撮合', desc: '介绍→对接', role: 'middleman', count: 2, tone: 'friendly', descExtra: '3→7天' },
 ];
 
 const FIXED_FORMAT_HINT = `--- 第N封 ---
@@ -34,7 +56,6 @@ export default function SequencePromptBuilder({ customerId, inquirySubject, inqu
   const [role, setRole] = useState('seller');
   const [count, setCount] = useState(3);
   const [words, setWords] = useState(150);
-  const [interval, setInterval] = useState(3);
   const [tone, setTone] = useState('professional');
   const [name, setName] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -59,7 +80,7 @@ export default function SequencePromptBuilder({ customerId, inquirySubject, inqu
   const applyStrategy = (key: string) => {
     setStrategy(key);
     const s = STRATEGIES.find(s => s.key === key);
-    if (s) { setRole(s.role); setCount(s.count); setInterval(s.interval); setTone(s.tone); }
+    if (s) { setRole(s.role); setCount(s.count); setTone(s.tone); }
   };
 
   const loadData = async () => {
@@ -139,9 +160,12 @@ export default function SequencePromptBuilder({ customerId, inquirySubject, inqu
     const sel = items.filter(i => selected.has(i.id));
     let dataBlock = '';
 
+    const intervals = getIntervals(count);
+    const intervalDesc = intervals.length > 0 ? intervals.join(' → ') + ' 天' : '';
+
     // 下次跟进时间（关键数据）
     if (startDate) {
-      dataBlock += `\n### ⏰ 下次跟进\n起始日期: ${startDate}（每封邮件间隔 ${interval} 天）\n`;
+      dataBlock += `\n### ⏰ 下次跟进\n起始日期: ${startDate}\n渐进间隔: ${intervalDesc}\n`;
     }
 
     // 开发方案
@@ -168,16 +192,8 @@ export default function SequencePromptBuilder({ customerId, inquirySubject, inqu
 
     const emailBlock = includeEmail && inquirySubject ? `\n## 📧 当前邮件\n主题: ${inquirySubject}\n内容: ${(inquiryBody || '').slice(0, 1500)}\n` : '';
 
-    // 计算每封邮件的日期
-    const dateList: string[] = [];
-    if (startDate) {
-      const base = new Date(startDate);
-      for (let i = 0; i < count; i++) {
-        const d = new Date(base);
-        d.setDate(d.getDate() + i * interval);
-        dateList.push(d.toISOString().split('T')[0]);
-      }
-    }
+    // 计算每封邮件的日期（渐进间隔）
+    const dateList = calcDates(startDate, count);
 
     const dateBlock = dateList.length > 0
       ? `\n### 📅 每封邮件日期（已计算）\n${dateList.map((d, i) => `第${i + 1}封: ${d} 09:00`).join('\n')}\n`
@@ -188,7 +204,8 @@ export default function SequencePromptBuilder({ customerId, inquirySubject, inqu
 ${dataBlock}${emailBlock}${dateBlock}
 
 ## ⚙️ 参数
-- 邮件数: ${count} 封 | 每封约 ${words} 字 | 间隔 ${interval} 天
+- 邮件数: ${count} 封 | 每封约 ${words} 字
+- 渐进间隔: ${intervalDesc}（第1封后${intervals[0] || '?'}天 → 第2封后${intervals[1] || '?'}天 → ...）
 - 角色: ${roleLabels[role]} — ${perspectives[role]}
 - 语气: ${toneLabels[tone]}
 ${name ? `- 序列名称: ${name}` : ''}
@@ -273,10 +290,14 @@ content: |
                 <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm">
                   <Calendar className="w-4 h-4 text-blue-600" />
                   <span className="text-blue-800">
-                    <strong>下次跟进起始日期:</strong> {startDate}
+                    <strong>下次跟进起始:</strong> {startDate}
                   </span>
                   <span className="text-xs text-blue-500 ml-auto">
-                    每 {interval} 天一封，共 {count} 封
+                    间隔 {getIntervals(count).join(' → ')} 天，共 {count} 封
+                    {(() => {
+                      const dates = calcDates(startDate, count);
+                      return dates.length ? ` (${dates.join(', ')})` : '';
+                    })()}
                   </span>
                 </div>
               )}
@@ -289,7 +310,7 @@ content: |
                     <button key={s.key} onClick={() => applyStrategy(s.key)}
                       className={`text-left px-3 py-1.5 rounded-lg text-xs transition-all ${strategy === s.key ? 'bg-purple-100 text-purple-800 ring-1 ring-purple-300' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'}`}>
                       <div className="font-medium">{s.label}</div>
-                      <div className="text-gray-400 text-[10px]">{s.desc} · {s.count}封/{s.interval}天</div>
+                      <div className="text-gray-400 text-[10px]">{s.desc} · {s.count}封 · {s.descExtra}</div>
                     </button>
                   ))}
                 </div>
@@ -314,12 +335,9 @@ content: |
                     <span className="text-[10px] text-gray-400 ml-1">封</span>
                   </div>
                   <span className="text-xs text-gray-400">·</span>
-                  <div className="flex items-center gap-1 bg-gray-50 rounded-lg px-2 py-1">
-                    <button onClick={() => setInterval(c => Math.max(1, c-1))} className="text-gray-400 hover:text-gray-600 text-xs">−</button>
-                    <span className="text-sm font-bold w-6 text-center">{interval}</span>
-                    <button onClick={() => setInterval(c => Math.min(30, c+1))} className="text-gray-400 hover:text-gray-600 text-xs">+</button>
-                    <span className="text-[10px] text-gray-400 ml-1">天</span>
-                  </div>
+                  <span className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded-lg">
+                    间隔 {getIntervals(count).join('→')}天
+                  </span>
                   <span className="text-xs text-gray-400">·</span>
                   <input type="number" value={words} onChange={e => setWords(Number(e.target.value))} className="w-14 px-1.5 py-1 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-center" />
                   <span className="text-[10px] text-gray-400">字/封</span>
