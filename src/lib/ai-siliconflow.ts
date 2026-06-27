@@ -1,13 +1,13 @@
 const API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
 
-// 按任务分配模型（优先使用免费/低价模型）
+// 按任务分配模型
 const MODEL_CONFIG = {
-  // 日常简单任务：分类、提取 → 用最便宜的
+  // 日常简单任务：分类、提取 → 用 7B 最便宜
   classification: ['Qwen/Qwen2.5-7B-Instruct'],
   extraction: ['Qwen/Qwen2.5-7B-Instruct'],
-  // 邮件草稿生成 → 中等模型即可
-  draft: ['Qwen/Qwen2.5-7B-Instruct', 'Qwen/Qwen3-8B', 'Qwen/Qwen2.5-14B-Instruct'],
-  // Prompt 生成 → 便宜模型
+  // 邮件草稿：需稳定 JSON → 14B 起，8B 备用
+  draft: ['Qwen/Qwen2.5-14B-Instruct', 'Qwen/Qwen3-8B', 'deepseek-ai/DeepSeek-V3'],
+  // Prompt 生成 → 7B 足够
   prompt: ['Qwen/Qwen2.5-7B-Instruct'],
 };
 
@@ -17,7 +17,8 @@ function getApiKey(): string {
 
 async function callAI(
   messages: { role: string; content: string }[],
-  task: keyof typeof MODEL_CONFIG = 'draft'
+  task: keyof typeof MODEL_CONFIG = 'draft',
+  maxTokens = 2048
 ): Promise<string> {
   const models = MODEL_CONFIG[task] || MODEL_CONFIG.draft;
   let lastError = '';
@@ -30,7 +31,7 @@ async function callAI(
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${getApiKey()}`,
         },
-        body: JSON.stringify({ model, messages, temperature: 0.7, max_tokens: 2048 }),
+        body: JSON.stringify({ model, messages, temperature: 0.7, max_tokens: maxTokens }),
       });
       const data = await res.json();
 
@@ -39,7 +40,7 @@ async function callAI(
         continue;
       }
       if (data.code === 30003 || data.code === 30007) {
-        continue; // 模型不可用
+        continue;
       }
       if (!res.ok) {
         lastError = `API 错误: HTTP ${res.status}`;
@@ -54,6 +55,40 @@ async function callAI(
   }
 
   throw new Error(lastError || '所有模型均不可用');
+}
+
+// 解析 AI 返回的 JSON（处理多个 JSON 对象、截断、markdown代码块等问题）
+function parseAIJson(text: string): Record<string, string> | null {
+  // 清理 markdown 代码块
+  let cleaned = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+  
+  // 先尝试直接解析
+  try { return JSON.parse(cleaned); } catch {}
+
+  // 尝试合并多个 JSON 对象 {a:1}{b:2} → {a:1,b:2}
+  const merged = cleaned.replace(/\}\s*\{/g, ',');
+  try { return JSON.parse(merged); } catch {}
+
+  // 提取所有 JSON 对象并合并
+  const allMatches = cleaned.match(/\{[^{}]*\}/g) || [];
+  if (allMatches.length >= 2) {
+    const result: Record<string, string> = {};
+    for (const match of allMatches) {
+      try {
+        Object.assign(result, JSON.parse(match));
+      } catch {}
+    }
+    if (Object.keys(result).length > 0) return result;
+  }
+
+  // 最后尝试：宽松匹配（处理未闭合的花括号）
+  const looseMatch = cleaned.match(/"subject"\s*:\s*"([^"]*)"/);
+  const bodyMatch = cleaned.match(/"body"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/);
+  if (looseMatch) {
+    return { subject: looseMatch[1], body: bodyMatch?.[1] || '' };
+  }
+
+  return null;
 }
 
 // 提取邮件要点
@@ -103,7 +138,7 @@ export async function generateReplyDraft(
     instructions = `\n## 客户背景\n${customerContext}\n`;
   }
 
-  const prompt = `你是资深外贸业务员，请生成一封专业、美观的邮件回复。
+  const prompt = `你是资深外贸业务员，请生成一封专业美观的邮件回复草稿。
 
 ${customerInfo ? `客户: ${customerInfo}` : ''}${instructions}
 邮件: ${subject}
@@ -113,23 +148,20 @@ ${customerInfo ? `客户: ${customerInfo}` : ''}${instructions}
 回复要求:
 1. 语言: ${langLabel}
 2. ${isUserGuided ? '严格按用户要点生成' : '简洁扼要，抓住邮件核心诉求'}
-3. ${isUserGuided ? '' : '字数不超过200字，条理清晰'}
-4. 格式要求（必须使用 Markdown 排版，确保邮件美观专业）:
-   - 标题用 ## 开头（如 ## 关于XX的回复）
-   - 用 **粗体** 突出关键信息（产品名、价格、交期等）
-   - 如有报价/规格/数量等数据，用 - 列表展示
-   - 每个要点之间用空行分隔，2-3个段落
-   - 使用 > 引用标注特别说明
-5. 友好商务结尾，包含期待回复等礼貌用语
+3. 格式要求（必须使用 Markdown 排版）:
+   - 用 **粗体** 突出关键信息
+   - 如有数据用 - 列表展示，段落间空行分隔
+4. 友好商务结尾
 
-返回纯JSON（不要\`\`\`标记）:
-{"subject":"Re: 原标题","body":"Markdown格式正文，段落间用空行分隔"}`;
+【重要】只返回一个完整的JSON对象，不要分多个JSON，格式如下:
+{"subject":"Re: 原标题","body":"Markdown正文"}
+
+直接返回JSON：`;
 
   try {
-    const result = await callAI([{ role: 'user', content: prompt }], 'draft');
-    const jsonMatch = result.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
+    const result = await callAI([{ role: 'user', content: prompt }], 'draft', 2048);
+    const parsed = parseAIJson(result);
+    if (parsed?.subject && parsed?.body) {
       return { subject: parsed.subject, body: parsed.body };
     }
   } catch {}
