@@ -12,7 +12,6 @@ export async function POST(request: NextRequest) {
     if (!to || !subject || !emailBody) return NextResponse.json({ error: '缺少必要字段' }, { status: 400 });
 
     let smtpConfig;
-    // 支持测试模式：直接传入 SMTP 配置，无需先保存到数据库
     if (testConfig && testConfig.host && testConfig.user && testConfig.pass) {
       smtpConfig = {
         host: testConfig.host,
@@ -39,18 +38,27 @@ export async function POST(request: NextRequest) {
       };
     }
 
-    await sendReplyEmail(
-      smtpConfig,
-      to, '', subject, emailBody,
-    );
+    await sendReplyEmail(smtpConfig, to, '', subject, emailBody);
 
-    // 创建跟进记录（仅当有 customerId 时）
+    const sentAt = new Date();
+
+    // 保存完整的发送记录到跟进记录中
     if (customerId) {
+      // 提取纯文本摘要（去掉 HTML 标签，取前 200 字）
+      const plainText = emailBody.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+      const summary = plainText.slice(0, 200);
+
       await prisma.followUp.create({
         data: {
-          customerId, contactMethod: 'email', followUpMatters: '开发',
-          nextAction: `已发送: ${subject.slice(0, 100)}`, priority: 'high', status: 'in_progress',
-          lastFollowUpDate: new Date(),
+          customerId,
+          contactMethod: '邮件',
+          followUpMatters: '邮件沟通',
+          nextAction: `已发送: ${subject}`,
+          priority: 'medium',
+          status: 'in_progress',
+          lastFollowUpDate: sentAt,
+          remarks: `【${subject}】\n收件人: ${to}\n\n${summary}${plainText.length > 200 ? '...' : ''}`,
+          stage: '邮件沟通',
         },
       });
     }

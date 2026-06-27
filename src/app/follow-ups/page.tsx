@@ -227,7 +227,7 @@ export default function FollowUpsPage() {
                 </div>
 
                 {/* === 第2行：跟进内容 + 优先级 + 阶段 === */}
-                <div className="flex items-center gap-2 px-3 pb-2">
+                <div className="flex items-center gap-2 px-3 pb-1">
                   {f.contactMethod === 'whatsapp' ? <MessageCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0" /> :
                    f.contactMethod === 'phone' ? <Phone className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" /> :
                    <Mail className="w-3.5 h-3.5 text-orange-500 flex-shrink-0" />}
@@ -246,6 +246,15 @@ export default function FollowUpsPage() {
                     <span className="text-[10px] text-green-600 flex-shrink-0">{sentimentIcon(f.replySentiment)} 回复</span>
                   )}
                 </div>
+
+                {/* 邮件内容预览（如果有备注） */}
+                {f.remarks && (
+                  <div className="px-3 pb-2">
+                    <p className="text-xs text-gray-500 line-clamp-2 bg-gray-50 rounded px-2 py-1">
+                      📧 {f.remarks.slice(0, 120)}{f.remarks.length > 120 ? '...' : ''}
+                    </p>
+                  </div>
+                )}
 
                 {/* === 第3行：时间线 + 操作按钮 === */}
                 <div className="flex items-center gap-2 px-3 pb-3">
