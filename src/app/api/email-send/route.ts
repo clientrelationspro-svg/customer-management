@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { to, subject, body: emailBody, customerId, config: testConfig } = body;
+    const { to, subject, body: emailBody, customerId, followUpId, config: testConfig } = body;
     if (!to || !subject || !emailBody) return NextResponse.json({ error: '缺少必要字段' }, { status: 400 });
 
     let smtpConfig;
@@ -42,25 +42,38 @@ export async function POST(request: NextRequest) {
 
     const sentAt = new Date();
 
-    // 保存完整的发送记录到跟进记录中
+    // 保存发送记录
     if (customerId) {
-      // 提取纯文本摘要（去掉 HTML 标签，取前 200 字）
       const plainText = emailBody.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
       const summary = plainText.slice(0, 200);
 
-      await prisma.followUp.create({
-        data: {
-          customerId,
-          contactMethod: '邮件',
-          followUpMatters: '邮件沟通',
-          nextAction: `已发送: ${subject}`,
-          priority: 'medium',
-          status: 'in_progress',
-          lastFollowUpDate: sentAt,
-          remarks: `【${subject}】\n收件人: ${to}\n\n${summary}${plainText.length > 200 ? '...' : ''}`,
-          stage: '邮件沟通',
-        },
-      });
+      if (followUpId) {
+        // 更新已有跟进记录，不新建
+        await prisma.followUp.update({
+          where: { id: followUpId },
+          data: {
+            lastFollowUpDate: sentAt,
+            contactMethod: '邮件',
+            stage: '邮件沟通',
+            remarks: `【${subject}】\n收件人: ${to}\n\n${summary}${plainText.length > 200 ? '...' : ''}`,
+          },
+        });
+      } else {
+        // 没有关联跟进记录时新建
+        await prisma.followUp.create({
+          data: {
+            customerId,
+            contactMethod: '邮件',
+            followUpMatters: '邮件沟通',
+            nextAction: `已发送: ${subject}`,
+            priority: 'medium',
+            status: 'in_progress',
+            lastFollowUpDate: sentAt,
+            remarks: `【${subject}】\n收件人: ${to}\n\n${summary}${plainText.length > 200 ? '...' : ''}`,
+            stage: '邮件沟通',
+          },
+        });
+      }
     }
 
     return NextResponse.json({ success: true });

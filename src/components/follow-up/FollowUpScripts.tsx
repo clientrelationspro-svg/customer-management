@@ -270,7 +270,7 @@ export default function FollowUpScripts({
         try {
           const res = await fetch('/api/email-send', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ to, subject: script.title, body: buildEmailHtml(script.content, script.title), customerId }),
+            body: JSON.stringify({ to, subject: script.title, body: buildEmailHtml(script.content, script.title), customerId, followUpId }),
           });
           if (res.ok) alert('邮件已发送！');
           else alert('发送失败');

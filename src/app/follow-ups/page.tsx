@@ -95,7 +95,7 @@ export default function FollowUpsPage() {
       const htmlBody = buildEmailHtml(emailBody, emailSubject);
       const res = await fetch(`/api/email-send`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: emailModal.followUp.email || emailModal.followUp.customer?.email, subject: emailSubject, body: htmlBody, customerId: emailModal.followUp.customerId }),
+        body: JSON.stringify({ to: emailModal.followUp.email || emailModal.followUp.customer?.email, subject: emailSubject, body: htmlBody, customerId: emailModal.followUp.customerId, followUpId: emailModal.followUp.id }),
       });
       if (res.ok) { alert('邮件已发送'); setEmailModal({ open: false, followUp: null }); fetchData(); }
       else alert('发送失败');
