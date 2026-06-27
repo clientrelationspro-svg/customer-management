@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Search, CheckCircle, Calendar, AlertCircle, Mail, MessageCircle, Phone, Edit3, Trash2, Building2, Send } from 'lucide-react';
+import { Plus, Search, CheckCircle, Calendar, AlertCircle, Mail, MessageCircle, Phone, Edit3, Trash2, Building2, Send, Globe, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ConfirmModal } from '@/components/ui/Modal';
@@ -203,64 +203,101 @@ export default function FollowUpsPage() {
             .map((f: FollowUp) => {
               const tag = getStatusTag(f);
               return (
-              <div key={f.id} className="bg-white rounded-lg border border-gray-100 hover:border-gray-200 hover:shadow-sm transition-all p-3 cursor-pointer"
+              <div key={f.id} className="bg-white rounded-lg border border-gray-100 hover:border-gray-200 hover:shadow-sm transition-all cursor-pointer"
                 onClick={() => router.push(`/follow-ups/${f.id}/edit`)}>
-                {/* 头部 */}
-                <div className="flex items-start justify-between mb-1.5">
-                  <div className="flex items-center gap-2 flex-wrap min-w-0">
-                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${levelColor(f.customer?.level || 'C')}`}>{f.customer?.level || 'C'}</span>
-                    <span className="font-medium text-sm text-gray-900 truncate">{f.customer?.companyName}</span>
-                    {f.customer?.country && <span className="text-xs text-gray-400">{f.customer.country}</span>}
-                    {f.stage && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600">{f.stage}</span>}
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${priorityColor(f.priority)}`}>{priorityText(f.priority)}</span>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${tag.color}`}>{tag.label}</span>
-                  </div>
-                </div>
 
-                {/* 内容行 */}
-                <div className="flex items-center gap-2 text-xs text-gray-500 flex-wrap mb-1.5">
-                  {f.contactMethod === 'whatsapp' ? <MessageCircle className="w-3 h-3 text-green-500" /> : f.contactMethod === 'phone' ? <Phone className="w-3 h-3 text-blue-500" /> : <Mail className="w-3 h-3 text-orange-500" />}
-                  <span>{f.nextAction || f.followUpMatters}</span>
-                  {f.replySentiment && <span className="text-gray-400">{sentimentIcon(f.replySentiment)} 客户已回复</span>}
-                </div>
-
-                {/* 底部信息 */}
-                <div className="flex items-center gap-2 text-[10px] text-gray-400">
-                  <span>{new Date(f.lastFollowUpDate).toLocaleDateString('zh-CN')}</span>
-                  {f.nextFollowUpDate && (
-                    <span className={isOverdue(f.nextFollowUpDate) ? 'text-red-500 font-medium' : ''}>
-                      <Calendar className="w-3 h-3 inline mr-0.5" />
-                      {new Date(f.nextFollowUpDate).toLocaleDateString('zh-CN')}
+                {/* === 第1行：客户基本信息 === */}
+                <div className="flex items-center gap-2 px-3 pt-3 pb-2">
+                  <span className={`flex-shrink-0 w-5 h-5 rounded text-[10px] font-bold flex items-center justify-center ${levelColor(f.customer?.level || 'C')}`}>
+                    {f.customer?.level || 'C'}
+                  </span>
+                  <span className="font-semibold text-sm text-gray-900 truncate">{f.customer?.companyName}</span>
+                  {f.customer?.country && (
+                    <span className="flex items-center gap-0.5 text-xs text-gray-400 flex-shrink-0">
+                      <Globe className="w-3 h-3" />{f.customer.country}
                     </span>
                   )}
-                  {f.replyKeyPoints && <span className="text-amber-600 truncate max-w-[200px]">💬 {f.replyKeyPoints}</span>}
+                  {f.customer?.industry && (
+                    <span className="text-[10px] text-gray-400 truncate hidden sm:inline">{f.customer.industry}</span>
+                  )}
+                  {/* 状态标签 */}
+                  <span className={`ml-auto flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full font-medium ${tag.color}`}>
+                    {tag.label}
+                  </span>
                 </div>
 
-                {/* 操作按钮 */}
-                <div className="flex items-center gap-1 mt-2 pt-2 border-t border-gray-50" onClick={e => e.stopPropagation()}>
-                  {!f.isCompleted && (
-                    <button onClick={() => handleComplete(f.id)} className="px-2 py-0.5 text-[10px] text-green-600 bg-green-50 hover:bg-green-100 rounded">
-                      <CheckCircle className="w-3 h-3 inline mr-0.5" />完成
-                    </button>
+                {/* === 第2行：跟进内容 + 优先级 + 阶段 === */}
+                <div className="flex items-center gap-2 px-3 pb-2">
+                  {f.contactMethod === 'whatsapp' ? <MessageCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0" /> :
+                   f.contactMethod === 'phone' ? <Phone className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" /> :
+                   <Mail className="w-3.5 h-3.5 text-orange-500 flex-shrink-0" />}
+                  <span className="text-sm text-gray-700 truncate flex-1">
+                    {f.nextAction || f.followUpMatters}
+                  </span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0 ${priorityColor(f.priority)}`}>
+                    {priorityText(f.priority)}
+                  </span>
+                  {f.stage && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 flex-shrink-0">
+                      {f.stage}
+                    </span>
                   )}
-                  {editingDate === f.id ? (
-                    <input type="date" defaultValue={f.nextFollowUpDate?.split('T')[0] || ''}
-                      onBlur={e => handleUpdateDate(f.id, e.target.value)}
-                      className="px-1 py-0.5 text-[10px] border border-gray-300 rounded w-28" />
-                  ) : (
-                    <button onClick={() => setEditingDate(f.id)} className="px-2 py-0.5 text-[10px] text-gray-500 hover:bg-gray-100 rounded">
-                      <Calendar className="w-3 h-3 inline mr-0.5" />改期
-                    </button>
+                  {f.replySentiment && (
+                    <span className="text-[10px] text-green-600 flex-shrink-0">{sentimentIcon(f.replySentiment)} 回复</span>
                   )}
-                  {(f.email || f.customer?.email) && (
-                    <button onClick={() => openEmail(f)} className="px-2 py-0.5 text-[10px] text-blue-600 bg-blue-50 hover:bg-blue-100 rounded">
-                      <Send className="w-3 h-3 inline mr-0.5" />发邮件
+                </div>
+
+                {/* === 第3行：时间线 + 操作按钮 === */}
+                <div className="flex items-center gap-2 px-3 pb-3">
+                  {/* 时间信息 */}
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <span>{new Date(f.lastFollowUpDate).toLocaleDateString('zh-CN')}</span>
+                    <span className="text-gray-300">→</span>
+                    {f.nextFollowUpDate ? (
+                      <span className={isOverdue(f.nextFollowUpDate) ? 'text-red-500 font-semibold' : 'text-gray-600'}>
+                        <Calendar className="w-3 h-3 inline mr-0.5" />
+                        {new Date(f.nextFollowUpDate).toLocaleDateString('zh-CN')}
+                      </span>
+                    ) : (
+                      <span className="text-gray-300">未设置</span>
+                    )}
+                  </div>
+
+                  {/* 操作按钮 */}
+                  <div className="flex items-center gap-1 ml-auto" onClick={e => e.stopPropagation()}>
+                    {!f.isCompleted && (
+                      <button onClick={() => handleComplete(f.id)} className="px-2 py-1 text-[10px] text-green-600 bg-green-50 hover:bg-green-100 rounded font-medium">
+                        <CheckCircle className="w-3 h-3 inline mr-0.5" />完成
+                      </button>
+                    )}
+                    {editingDate === f.id ? (
+                      <input type="date" defaultValue={f.nextFollowUpDate?.split('T')[0] || ''}
+                        onBlur={e => handleUpdateDate(f.id, e.target.value)}
+                        className="px-1 py-1 text-[10px] border border-gray-300 rounded w-28" autoFocus />
+                    ) : (
+                      <button onClick={() => setEditingDate(f.id)} className="px-2 py-1 text-[10px] text-gray-500 hover:bg-gray-100 rounded">
+                        📅 改期
+                      </button>
+                    )}
+                    {(f.email || f.customer?.email) && (
+                      <button onClick={() => openEmail(f)} className="px-2 py-1 text-[10px] text-blue-600 bg-blue-50 hover:bg-blue-100 rounded">
+                        发邮件
+                      </button>
+                    )}
+                    {f.whatsapp && (
+                      <a href={`https://wa.me/${f.whatsapp.replace(/\D/g,'')}`} target="_blank"
+                        className="p-1 text-green-500 hover:bg-green-50 rounded" title="WhatsApp">
+                        <MessageCircle className="w-3.5 h-3.5" />
+                      </a>
+                    )}
+                    <button onClick={() => router.push(`/follow-ups/${f.id}/edit`)}
+                      className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded" title="编辑">
+                      <Edit3 className="w-3.5 h-3.5" />
                     </button>
-                  )}
-                  <div className="flex items-center gap-0.5 ml-auto">
-                    {f.whatsapp && <a href={`https://wa.me/${f.whatsapp.replace(/\D/g,'')}`} target="_blank" className="p-1 text-green-500 hover:bg-green-50 rounded"><MessageCircle className="w-3 h-3" /></a>}
-                    <button onClick={() => router.push(`/follow-ups/${f.id}/edit`)} className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"><Edit3 className="w-3 h-3" /></button>
-                    <button onClick={() => setDeleteTarget(f)} className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3 h-3" /></button>
+                    <button onClick={() => setDeleteTarget(f)}
+                      className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded" title="删除">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
               </div>
