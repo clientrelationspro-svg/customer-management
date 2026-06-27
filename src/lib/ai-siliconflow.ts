@@ -66,7 +66,7 @@ export async function generateReplyDraft(
     instructions = `\n## 客户背景\n${customerContext}\n`;
   }
 
-  const prompt = `你是资深外贸业务员，请生成专业邮件回复。
+  const prompt = `你是资深外贸业务员，请生成一封专业、美观的邮件回复。
 
 ${customerInfo ? `客户: ${customerInfo}` : ''}${instructions}
 邮件: ${subject}
@@ -77,14 +77,16 @@ ${customerInfo ? `客户: ${customerInfo}` : ''}${instructions}
 1. 语言: ${langLabel}
 2. ${isUserGuided ? '严格按用户要点生成' : '简洁扼要，抓住邮件核心诉求'}
 3. ${isUserGuided ? '' : '字数不超过200字，条理清晰'}
-4. 回复格式必须使用 Markdown:
-   - 用 **粗体** 突出关键信息
-   - 如有报价/规格用 - 列表展示
-   - 段落简短，2-3段即可
-5. 友好结尾
+4. 格式要求（必须使用 Markdown 排版，确保邮件美观专业）:
+   - 标题用 ## 开头（如 ## 关于XX的回复）
+   - 用 **粗体** 突出关键信息（产品名、价格、交期等）
+   - 如有报价/规格/数量等数据，用 - 列表展示
+   - 每个要点之间用空行分隔，2-3个段落
+   - 使用 > 引用标注特别说明
+5. 友好商务结尾，包含期待回复等礼貌用语
 
 返回纯JSON（不要\`\`\`标记）:
-{"subject":"Re: 原标题","body":"Markdown格式正文"}`;
+{"subject":"Re: 原标题","body":"Markdown格式正文，段落间用空行分隔"}`;
 
   try {
     const result = await callAI([{ role: 'user', content: prompt }]);
@@ -94,5 +96,11 @@ ${customerInfo ? `客户: ${customerInfo}` : ''}${instructions}
       return { subject: parsed.subject, body: parsed.body };
     }
   } catch {}
-  return { subject: `Re: ${subject}`, body: `感谢您的来信，我们会尽快回复。` };
+  return { subject: `Re: ${subject}`, body: `## 感谢您的来信
+
+我们已收到您的询价，正在确认相关信息。
+
+> 如有紧急需求，请随时联系我们。
+
+**期待与您的合作！**` };
 }

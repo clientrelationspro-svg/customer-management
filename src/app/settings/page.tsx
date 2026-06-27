@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { Users, Shield, UserPlus, Trash2, Settings as SettingsIcon, Crown, AlertCircle, LogOut, BookOpen, Plus, Edit3, Save, X, Mail, RefreshCw, Check, Eye, EyeOff, Info, ExternalLink, UserCog, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { buildEmailHtml } from '@/lib/email/email-template';
 
 interface User {
   id: string;
@@ -267,7 +268,16 @@ function SettingsContent() {
         body: JSON.stringify({
           to: emailForm.imapUser,
           subject: '🔧 客户管理系统 - 邮箱配置测试',
-          html: `<div style="font-family:sans-serif;padding:20px;"><h2>✅ 邮箱配置成功！</h2><p>如果你收到这封邮件，说明你的 SMTP 配置是正确的。</p><p>发件人: ${emailForm.fromName || emailForm.imapUser}</p><p style="color:#999;font-size:12px;">此邮件由客户管理系统自动发送</p></div>`,
+          body: buildEmailHtml(`## ✅ 邮箱配置成功！
+
+如果你收到这封邮件，说明你的 **SMTP 配置** 是正确的。
+
+**发件人:** ${emailForm.fromName || emailForm.imapUser}
+
+---
+
+> 此邮件由客户管理系统自动发送
+`, '邮箱配置测试'),
           config: {
             host: emailForm.smtpHost, port: parseInt(emailForm.smtpPort),
             user: emailForm.smtpUser, pass: emailForm.smtpPass,

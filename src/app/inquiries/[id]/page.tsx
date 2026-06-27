@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card';
 import MarkdownEditor, { markdownToHtml } from '@/components/ui/MarkdownEditor';
 import SequencePromptBuilder from '@/components/follow-up/SequencePromptBuilder';
 import ConversationEmailBuilder from '@/components/follow-up/ConversationEmailBuilder';
+import { buildEmailHtml } from '@/lib/email/email-template';
 
 interface Inquiry {
   id: string; messageId?: string; fromEmail: string; fromName?: string;
@@ -72,7 +73,7 @@ export default function InquiryDetailPage() {
   useEffect(() => { fetchInquiry(); fetchFollowUps(); fetch('/api/customers?limit=200').then(r => r.json()).then(d => { if (d.success) setCustomers(d.data || []); }).catch(() => {}); }, [id]);
 
   const handleSaveDraft = async () => {
-    const htmlBody = editBody.includes('<') ? editBody : markdownToHtml(editBody);
+    const htmlBody = buildEmailHtml(editBody, editSubject);
     await fetch(`/api/inquiries/${id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ finalSubject: editSubject, finalBody: htmlBody, customerId: assignCustomerId || null, action: 'review' }),
@@ -118,7 +119,7 @@ export default function InquiryDetailPage() {
     const confirmMsg = scheduleMode ? `确认设定于 ${scheduledTime} 定时发送？` : '确认立即发送此回复邮件？';
     if (!confirm(confirmMsg)) return;
     setSending(true);
-    const htmlBody = editBody.includes('<') ? editBody : markdownToHtml(editBody);
+    const htmlBody = buildEmailHtml(editBody, editSubject);
     const res = await fetch(`/api/inquiries/${id}/send`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

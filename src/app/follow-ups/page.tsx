@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { ConfirmModal } from '@/components/ui/Modal';
 import { isOverdue } from '@/lib/utils';
 import MarkdownEditor, { markdownToHtml } from '@/components/ui/MarkdownEditor';
+import { buildEmailHtml } from '@/lib/email/email-template';
 
 interface FollowUp {
   id: string; customerId: string; contactId?: string; phone?: string; whatsapp?: string; email?: string;
@@ -91,7 +92,7 @@ export default function FollowUpsPage() {
     if (!emailModal.followUp) return;
     setSending(true);
     try {
-      const htmlBody = emailBody.includes('<') ? emailBody : markdownToHtml(emailBody);
+      const htmlBody = buildEmailHtml(emailBody, emailSubject);
       const res = await fetch(`/api/email-send`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ to: emailModal.followUp.email || emailModal.followUp.customer?.email, subject: emailSubject, body: htmlBody, customerId: emailModal.followUp.customerId }),

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { logActivity } from '@/lib/activity';
 import MarkdownEditor, { markdownToHtml } from '@/components/ui/MarkdownEditor';
+import { buildEmailHtml } from '@/lib/email/email-template';
 
 interface Script {
   id: string;
@@ -264,7 +265,7 @@ export default function FollowUpScripts({
         try {
           const res = await fetch('/api/email-send', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ to, subject: script.title, body: script.content, customerId }),
+            body: JSON.stringify({ to, subject: script.title, body: buildEmailHtml(script.content, script.title), customerId }),
           });
           if (res.ok) alert('邮件已发送！');
           else alert('发送失败');
