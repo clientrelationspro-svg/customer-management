@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Send, Save, UserPlus, CheckCircle, Mail, Package, Trash2 } from 'lucide-react';
+import { ArrowLeft, Send, Save, UserPlus, CheckCircle, Mail, Package, Trash2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import MarkdownEditor from '@/components/ui/MarkdownEditor';
@@ -37,6 +37,8 @@ export default function InquiryDetailPage() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [userNotes, setUserNotes] = useState('');
   const [showNotesInput, setShowNotesInput] = useState(true);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState('');
   const [attachments, setAttachments] = useState<{ url: string; filename: string; size: number; type: string }[]>([]);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [scheduleMode, setScheduleMode] = useState(false);
@@ -80,7 +82,38 @@ export default function InquiryDetailPage() {
     fetchInquiry();
   };
 
-  // 将用户要点格式化为邮件模板
+  // AI 生成邮件（调用后端 regenerateDraft）
+  const generateWithAI = async () => {
+    if (!userNotes.trim()) return;
+    setAiLoading(true);
+    setAiError('');
+    try {
+      const res = await fetch(`/api/inquiries/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          regenerateDraft: true,
+          customerId: assignCustomerId || null,
+          userNotes: userNotes.trim(),
+        }),
+      });
+      const d = await res.json();
+      if (res.ok && d.success && d.data?.aiDraftBody) {
+        setEditSubject(d.data.aiDraftSubject || `Re: ${inquiry?.subject || ''}`);
+        setEditBody(d.data.aiDraftBody);
+        setShowNotesInput(false);
+        setAiError('');
+      } else {
+        setAiError(d.error || 'AI 生成失败，请检查 API 配置');
+      }
+    } catch (e: any) {
+      setAiError(`网络错误: ${e?.message || '请检查连接'}`);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  // 将用户要点格式化为邮件模板（备用）
   const applyNotes = () => {
     if (!userNotes.trim()) return;
     const points = userNotes.trim().split(/[,，\n]/).filter(p => p.trim());
@@ -189,29 +222,39 @@ ${points.map((p, i) => `${i + 1}. ${p.trim()}`).join('\n')}
             <Card>
               <h2 className="font-semibold mb-3 flex items-center gap-2"><Send className="w-5 h-5 text-green-600" />回复邮件</h2>
 
-              {/* 要点输入框（默认展开） */}
-              <div className="mb-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
+              {/* 提示词输入区 */}
+              <div className="mb-4 p-3 bg-purple-50 rounded-lg border border-purple-200">
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-medium text-amber-700">✏️ 回复要点（每行一个要点，自动生成邮件模板）</label>
-                  <button onClick={() => setShowNotesInput(!showNotesInput)} className="text-amber-400 hover:text-amber-600 text-xs">
+                  <label className="text-xs font-medium text-purple-700">✏️ 回复提示词（AI 将根据你的要点生成完整邮件）</label>
+                  <button onClick={() => setShowNotesInput(!showNotesInput)} className="text-purple-400 hover:text-purple-600 text-xs">
                     {showNotesInput ? '收起' : '展开'}
                   </button>
                 </div>
                 {showNotesInput && (<>
-                  <textarea value={userNotes} onChange={e => setUserNotes(e.target.value)} rows={4}
-                    placeholder={`报CIF价$820/吨，FOB上海
+                  <textarea value={userNotes} onChange={e => { setUserNotes(e.target.value); setAiError(''); }} rows={4}
+                    placeholder={`介绍公司主营钽铌矿贸易，有稳定非洲矿源
+报CIF价$820/吨，FOB上海$780
 强调ISO 9001和CE认证
 最小起订量5吨，30天交货
-询问是否需要免费样品
-提供公司网站和联系方式`}
-                    className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm resize-y font-mono" />
+询问客户具体需求和年采购量`}
+                    className="w-full px-3 py-2 border border-purple-300 rounded-lg text-sm resize-y font-mono" />
+                  
+                  {aiError && (
+                    <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-600">{aiError}</div>
+                  )}
+
                   <div className="flex justify-between items-center mt-2">
-                    <span className="text-xs text-amber-600">
-                      {userNotes.trim() ? `已输入 ${userNotes.trim().split(/[\\n,，]/).filter((p: string) => p.trim()).length} 个要点` : '输入你的回复要点，系统将自动排版为邮件'}
+                    <span className="text-xs text-purple-600">
+                      {userNotes.trim() ? `${userNotes.trim().split(/[\\n,，]/).filter((p: string) => p.trim()).length} 个要点` : '输入要点作为 AI 提示词'}
                     </span>
-                    <Button size="sm" onClick={applyNotes} disabled={!userNotes.trim()} className="bg-amber-600 hover:bg-amber-700">
-                      📋 应用为邮件模板
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="secondary" onClick={applyNotes} disabled={!userNotes.trim()} className="text-xs">
+                        📋 模板排版
+                      </Button>
+                      <Button size="sm" onClick={generateWithAI} loading={aiLoading} disabled={!userNotes.trim()} className="bg-purple-600 hover:bg-purple-700">
+                        <Sparkles className="w-3 h-3 mr-1" />AI 生成邮件
+                      </Button>
+                    </div>
                   </div>
                 </>)}
               </div>

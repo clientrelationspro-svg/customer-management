@@ -34,23 +34,32 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
     // 重新生成 AI 草稿
     if (regenerateDraft) {
-      const customer = customerId
-        ? await prisma.customer.findUnique({ where: { id: customerId }, select: { companyName: true, country: true, industry: true } })
-        : null;
-      const customerInfo = customer ? `${customer.companyName} (${customer.country || ''}) - ${customer.industry || ''}` : '';
+      try {
+        const customer = customerId
+          ? await prisma.customer.findUnique({ where: { id: customerId }, select: { companyName: true, country: true, industry: true } })
+          : null;
+        const customerInfo = customer ? `${customer.companyName} (${customer.country || ''}) - ${customer.industry || ''}` : '';
 
-      const draft = await generateReplyDraft(
-        inquiry.subject, inquiry.body, inquiry.language || 'en', customerInfo,
-        { productInterested: inquiry.productInterested || '', quantity: inquiry.quantity || '', deliveryRequired: inquiry.deliveryRequired || '' },
-        userNotes || ''
-      );
+        const draft = await generateReplyDraft(
+          inquiry.subject, inquiry.body, inquiry.language || 'en', customerInfo,
+          { productInterested: inquiry.productInterested || '', quantity: inquiry.quantity || '', deliveryRequired: inquiry.deliveryRequired || '' },
+          userNotes || ''
+        );
 
-      await prisma.inquiry.update({
-        where: { id: params.id },
-        data: { aiDraftSubject: draft.subject, aiDraftBody: draft.body },
-      });
+        if (!draft.subject || !draft.body) {
+          return NextResponse.json({ success: false, error: 'AI 返回内容为空，请重试或检查 API 配置' });
+        }
 
-      return NextResponse.json({ success: true, data: { aiDraftSubject: draft.subject, aiDraftBody: draft.body } });
+        await prisma.inquiry.update({
+          where: { id: params.id },
+          data: { aiDraftSubject: draft.subject, aiDraftBody: draft.body },
+        });
+
+        return NextResponse.json({ success: true, data: { aiDraftSubject: draft.subject, aiDraftBody: draft.body } });
+      } catch (e: any) {
+        console.error('AI draft generation error:', e?.message || e);
+        return NextResponse.json({ success: false, error: `AI 生成失败: ${e?.message || '请检查 SiliconFlow API 配置'}` }, { status: 500 });
+      }
     }
 
     // 更新字段
