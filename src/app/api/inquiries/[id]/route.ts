@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { extractInquiryPoints, generateReplyDraft } from '@/lib/ai-siliconflow';
 import { sendReplyEmail } from '@/lib/email/smtp-sender';
+import { getCurrentUser } from '@/lib/auth';
 
 const prisma = new PrismaClient();
 export const dynamic = 'force-dynamic';
@@ -40,10 +41,22 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
           : null;
         const customerInfo = customer ? `${customer.companyName} (${customer.country || ''}) - ${customer.industry || ''}` : '';
 
+        // 读取当前登录用户的档案信息（身份/企业/联系方式）
+        const currentUser = await getCurrentUser();
+        const senderInfo = currentUser ? {
+          name: currentUser.name || '',
+          company: currentUser.company || '',
+          role: currentUser.businessRole || 'supplier',
+          description: currentUser.description || '',
+          contact: currentUser.contact || '',
+          email: currentUser.email,
+        } : null;
+
         const draft = await generateReplyDraft(
           inquiry.subject, inquiry.body, inquiry.language || 'en', customerInfo,
           { productInterested: inquiry.productInterested || '', quantity: inquiry.quantity || '', deliveryRequired: inquiry.deliveryRequired || '' },
-          userNotes || ''
+          userNotes || '',
+          senderInfo
         );
 
         if (!draft.subject || !draft.body) {

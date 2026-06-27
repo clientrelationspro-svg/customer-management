@@ -126,7 +126,8 @@ export async function generateReplyDraft(
   language: string,
   customerInfo: string,
   extractedPoints: { productInterested: string; quantity: string; deliveryRequired: string },
-  customerContext: string
+  customerContext: string,
+  senderInfo?: { name: string; company: string; role: string; description: string; contact: string; email: string } | null
 ): Promise<{ subject: string; body: string }> {
   const langLabel = language === 'zh' ? '中文' : language === 'en' ? '英文' : '西班牙文';
   const isUserGuided = customerContext && customerContext.length < 500 && !customerContext.includes('\n最近互动');
@@ -138,8 +139,20 @@ export async function generateReplyDraft(
     instructions = `\n## 客户背景\n${customerContext}\n`;
   }
 
-  const prompt = `你是资深外贸业务员，请生成一封专业美观的邮件回复草稿。
+  // 发件人身份（从系统设置读取，固定不可变）
+  let senderBlock = '';
+  if (senderInfo?.name || senderInfo?.company) {
+    const roleMap: Record<string, string> = { supplier: '供应商', buyer: '采购商', middleman: '中间商' };
+    senderBlock = `\n## 👤 你的身份（邮件签名必须使用以下信息）\n`;
+    if (senderInfo.name) senderBlock += `- 姓名: ${senderInfo.name}\n`;
+    if (senderInfo.company) senderBlock += `- 公司: ${senderInfo.company}\n`;
+    if (senderInfo.description) senderBlock += `- 业务: ${senderInfo.description}\n`;
+    if (senderInfo.contact) senderBlock += `- 联系方式: ${senderInfo.contact}（必须出现在结尾）\n`;
+    senderBlock += `- 角色: ${roleMap[senderInfo.role] || senderInfo.role}\n`;
+  }
 
+  const prompt = `你是资深外贸业务员，请生成一封专业美观的邮件回复草稿。
+${senderBlock}
 ${customerInfo ? `客户: ${customerInfo}` : ''}${instructions}
 邮件: ${subject}
 内容: ${body.slice(0, 3000)}
@@ -151,7 +164,8 @@ ${customerInfo ? `客户: ${customerInfo}` : ''}${instructions}
 3. 格式要求（必须使用 Markdown 排版）:
    - 用 **粗体** 突出关键信息
    - 如有数据用 - 列表展示，段落间空行分隔
-4. 友好商务结尾
+4. 邮件结尾必须包含你的姓名、公司、联系方式（从上方"你的身份"获取）
+5. 友好商务结尾
 
 【重要】只返回一个完整的JSON对象，不要分多个JSON，格式如下:
 {"subject":"Re: 原标题","body":"Markdown正文"}
