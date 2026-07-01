@@ -284,7 +284,9 @@ export default function FollowUpsPage() {
                   <span className={`flex-shrink-0 w-5 h-5 rounded text-[10px] font-bold flex items-center justify-center ${levelColor(f.customer?.level || 'C')}`}>
                     {f.customer?.level || 'C'}
                   </span>
-                  <span className="font-semibold text-sm text-gray-900 truncate">{f.customer?.companyName}</span>
+                  <span className="font-semibold text-sm text-gray-900 truncate">
+                    {f.customer?.companyName || (f.customerId ? `ID: ${f.customerId.slice(0, 8)}...` : '未关联')}
+                  </span>
                   {f.customer?.country && (
                     <span className="flex items-center gap-0.5 text-xs text-gray-400 flex-shrink-0">
                       <Globe className="w-3 h-3" />{f.customer.country}

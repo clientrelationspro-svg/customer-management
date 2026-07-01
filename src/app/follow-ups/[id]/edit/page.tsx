@@ -508,7 +508,13 @@ content: |
                 <label className="block text-sm font-medium mb-1">客户</label>
                 <div className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 font-medium">
                   <Building2 className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                  {customers.find(c => c.id === formData.customerId)?.companyName || '—'}
+                  {(() => {
+                    const found = customers.find(c => c.id === formData.customerId);
+                    if (found?.companyName) return found.companyName;
+                    if (!formData.customerId) return <span className="text-gray-400">未关联客户</span>;
+                    if (customers.length === 0) return <span className="text-gray-400">加载中...</span>;
+                    return <span className="text-gray-400">{formData.customerId.slice(0, 8)}...（未找到客户信息）</span>;
+                  })()}
                 </div>
               </div>
               
