@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save, Plus, Trash2, Calendar, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Save, Plus, Trash2, Calendar, AlertCircle, Search, X, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 
@@ -26,6 +26,11 @@ export default function NewFollowUpPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   
+  // 可搜索客户选择器
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  
   const [formData, setFormData] = useState({
     customerId: '',
     companyName: '',  // 新建客户时使用
@@ -46,6 +51,23 @@ export default function NewFollowUpPage() {
   useEffect(() => {
     fetchCustomers();
   }, []);
+
+  // 点击外部关闭下拉
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // 过滤匹配的客户
+  const filteredCustomers = customerSearch.trim()
+    ? customers.filter(c => c.companyName.toLowerCase().includes(customerSearch.toLowerCase()))
+    : customers;
+  const exactMatch = customers.find(c => c.companyName.toLowerCase() === customerSearch.trim().toLowerCase());
 
   const fetchCustomers = async () => {
     try {
@@ -196,49 +218,69 @@ export default function NewFollowUpPage() {
             <Card>
               <h2 className="text-xl font-semibold mb-4">基本信息</h2>
               
-              {/* 客户选择 */}
-              <div className="mb-4">
+              {/* 可搜索客户选择器 */}
+              <div className="mb-4" ref={dropdownRef}>
                 <label className="block text-sm font-medium mb-2">
                   客户 <span className="text-red-500">*</span>
                 </label>
-                <select
-                  name="customerId"
-                  value={formData.customerId}
-                  onChange={(e) => {
-                    handleChange(e);
-                    if (e.target.value) {
-                      fetchCustomerInfo(e.target.value);
-                      fetchContacts(e.target.value);
-                      setFormData(prev => ({ ...prev, companyName: '' }));
-                    }
-                  }}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent rounded-b-none"
-                >
-                  <option value="">选择已有客户</option>
-                  {customers.map((customer) => (
-                    <option key={customer.id} value={customer.id}>
-                      {customer.companyName}
-                    </option>
-                  ))}
-                </select>
-                <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-t-0 border-gray-300 rounded-b-lg">
-                  <span className="text-xs text-gray-500 whitespace-nowrap">或新建：</span>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
                     type="text"
-                    name="companyName"
-                    value={formData.companyName}
+                    value={formData.customerId ? (customers.find(c => c.id === formData.customerId)?.companyName || customerSearch) : customerSearch}
                     onChange={(e) => {
-                      handleChange(e);
-                      if (e.target.value) {
-                        setFormData(prev => ({ ...prev, customerId: '' }));
+                      const val = e.target.value;
+                      setCustomerSearch(val);
+                      setShowDropdown(true);
+                      // 清除已选
+                      if (formData.customerId) {
+                        setFormData(prev => ({ ...prev, customerId: '', companyName: val }));
+                      } else {
+                        setFormData(prev => ({ ...prev, companyName: val }));
                       }
                     }}
-                    placeholder="输入新客户公司名称自动创建"
-                    className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:border-blue-500 focus:ring-blue-500"
+                    onFocus={() => setShowDropdown(true)}
+                    placeholder="搜索或输入新客户名称..."
+                    className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
+                  {customerSearch && (
+                    <button onClick={() => { setCustomerSearch(''); setFormData(prev => ({ ...prev, customerId: '', companyName: '' })); }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
+
+                {/* 下拉匹配列表 */}
+                {showDropdown && customerSearch.trim() && (
+                  <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    {filteredCustomers.length > 0 && (
+                      <div className="py-1">
+                        {filteredCustomers.slice(0, 8).map(c => (
+                          <button key={c.id} type="button"
+                            onClick={() => {
+                              setFormData(prev => ({ ...prev, customerId: c.id, companyName: '' }));
+                              setCustomerSearch(c.companyName);
+                              setShowDropdown(false);
+                              fetchCustomerInfo(c.id);
+                              fetchContacts(c.id);
+                            }}
+                            className={`w-full text-left px-4 py-2 text-sm hover:bg-blue-50 flex items-center gap-2 ${c.companyName === customerSearch.trim() ? 'bg-blue-50' : ''}`}>
+                            <Building2 className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                            <span>{c.companyName}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {!exactMatch && customerSearch.trim() && (
+                      <div className="px-4 py-2 text-sm text-purple-600 border-t border-gray-100 bg-purple-50">
+                        ✨ 将创建新客户: <strong>{customerSearch.trim()}</strong>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <p className="text-xs text-gray-400 mt-1">
-                  选择已有客户或输入新公司名称，系统会自动在客户管理中创建
+                  {formData.customerId ? '✅ 已选择已有客户' : customerSearch.trim() ? '将创建新客户并自动填入系统' : '输入客户名称搜索，或输入新名称自动创建'}
                 </p>
               </div>
 
