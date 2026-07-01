@@ -3,7 +3,7 @@
 import { Suspense } from 'react';
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Save, Trash2, Calendar, AlertCircle, Sparkles, Copy, Upload, Download, CheckCircle, X, Send, ChevronDown, ChevronUp, RotateCcw, FileText, Mail, BookOpen, Plus, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, Trash2, Calendar, AlertCircle, Sparkles, Copy, Upload, Download, CheckCircle, X, Send, ChevronDown, ChevronUp, RotateCcw, FileText, Mail, BookOpen, Plus, Loader2, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ConfirmModal } from '@/components/ui/Modal';
@@ -503,29 +503,13 @@ content: |
             <Card>
               <h2 className="text-xl font-semibold mb-4">基本信息</h2>
               
-              {/* 客户选择 */}
+              {/* 客户名称（只读显示） */}
               <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">
-                  客户 <span className="text-red-500">*</span>
-                </label>
-                <select
-                  name="customerId"
-                  value={formData.customerId}
-                  onChange={(e) => {
-                    handleChange(e);
-                    if (e.target.value) fetchContacts(e.target.value);
-                  }}
-                  required={!isArchived}
-                  disabled={isArchived}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
-                >
-                  <option value="">选择客户</option>
-                  {customers.map((customer) => (
-                    <option key={customer.id} value={customer.id}>
-                      {customer.companyName}
-                    </option>
-                  ))}
-                </select>
+                <label className="block text-sm font-medium mb-1">客户</label>
+                <div className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 font-medium">
+                  <Building2 className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                  {customers.find(c => c.id === formData.customerId)?.companyName || '—'}
+                </div>
               </div>
               
               {/* 联系人选择 */}
