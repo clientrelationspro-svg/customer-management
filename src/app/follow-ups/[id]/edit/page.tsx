@@ -53,6 +53,7 @@ function EditFollowUpPageContent() {
   const [saving, setSaving] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [customerName, setCustomerName] = useState('');
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [scriptRefreshKey, setScriptRefreshKey] = useState(0);
   
@@ -124,6 +125,8 @@ function EditFollowUpPageContent() {
       const res = await fetch(`/api/follow-ups/${id}`);
       if (res.ok) {
         const followUp: FollowUp = await res.json();
+        // 直接从API获取客户名称
+        setCustomerName((followUp as any).customer?.companyName || '');
         setFormData({
           customerId: followUp.customerId || '',
           contactId: followUp.contactId || '',
@@ -503,18 +506,12 @@ content: |
             <Card>
               <h2 className="text-xl font-semibold mb-4">基本信息</h2>
               
-              {/* 客户名称（只读显示） */}
+              {/* 客户名称（直接从API获取，不依赖客户列表查询） */}
               <div className="mb-4">
                 <label className="block text-sm font-medium mb-1">客户</label>
                 <div className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 font-medium">
                   <Building2 className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                  {(() => {
-                    const found = customers.find(c => c.id === formData.customerId);
-                    if (found?.companyName) return found.companyName;
-                    if (!formData.customerId) return <span className="text-gray-400">未关联客户</span>;
-                    if (customers.length === 0) return <span className="text-gray-400">加载中...</span>;
-                    return <span className="text-gray-400">{formData.customerId.slice(0, 8)}...（未找到客户信息）</span>;
-                  })()}
+                  {customerName || (formData.customerId ? <span className="text-gray-400">加载中...</span> : <span className="text-gray-400">未关联客户</span>)}
                 </div>
               </div>
               
