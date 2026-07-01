@@ -100,10 +100,10 @@ function EditFollowUpPageContent() {
   
   // 获取客户列表
   useEffect(() => {
-    fetchCustomers();
-    if (followUpId) {
-      fetchFollowUp(followUpId);
-    }
+    // 先加载客户列表，再加载跟进记录，确保下拉框有选项匹配
+    fetchCustomers().then(() => {
+      if (followUpId) fetchFollowUp(followUpId);
+    });
   }, [followUpId]);
   
   const fetchCustomers = async () => {
